@@ -27,6 +27,10 @@ CLAUDE_MODEL      = "claude-opus-4-5"
 TELEGRAM_BOT_TOKEN      = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID        = os.getenv("TELEGRAM_CHAT_ID", "")
 
+# ── Google Sheets (legacy — mantenuto per sheets_writer.py) ───────
+GOOGLE_CREDENTIALS_FILE = os.getenv("GOOGLE_CREDENTIALS_FILE", "credentials.json")
+GOOGLE_SHEET_ID         = os.getenv("GOOGLE_SHEET_ID", "")
+
 # ── Notion ────────────────────────────────────────────────────────
 # Ottieni il token su: https://www.notion.so/my-integrations
 NOTION_API_KEY        = os.getenv("NOTION_API_KEY", "")

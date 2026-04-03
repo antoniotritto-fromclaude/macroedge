@@ -1,0 +1,103 @@
+# .github/workflows/test.yml
+# ================================================================
+# MacroEdge — test rapido delle connessioni
+# Eseguibile manualmente dal tab Actions per verificare
+# che Telegram, Notion, prezzi e feed RSS siano configurati.
+# NON invia report reali, solo messaggi di test.
+# ================================================================
+
+name: MacroEdge — Test Connessioni
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_target:
+        description: "Cosa testare"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - "all"
+          - "telegram"
+          - "notion"
+          - "prices"
+          - "news"
+
+jobs:
+  test_connections:
+    name: "Test connessioni MacroEdge"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Installa dipendenze
+        run: pip install -r requirements.txt
+
+      - name: Crea cartella logs
+        run: mkdir -p logs
+
+      - name: Test — Telegram
+        if: ${{ inputs.test_target == 'all' || inputs.test_target == 'telegram' }}
+        env:
+          TELEGRAM_BOT_TOKEN:    ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:      ${{ secrets.TELEGRAM_CHAT_ID }}
+          NOTION_API_KEY:        ${{ secrets.NOTION_API_KEY }}
+          NOTION_DB_REPORTS:     ${{ secrets.NOTION_DB_REPORTS }}
+          NOTION_DB_TECNICA:     ${{ secrets.NOTION_DB_TECNICA }}
+          NOTION_DB_NEWS:        ${{ secrets.NOTION_DB_NEWS }}
+          NOTION_PARENT_PAGE_ID: ${{ secrets.NOTION_PARENT_PAGE_ID }}
+        run: python main.py --test-telegram
+
+      - name: Test — Notion
+        if: ${{ inputs.test_target == 'all' || inputs.test_target == 'notion' }}
+        env:
+          TELEGRAM_BOT_TOKEN:    ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:      ${{ secrets.TELEGRAM_CHAT_ID }}
+          NOTION_API_KEY:        ${{ secrets.NOTION_API_KEY }}
+          NOTION_DB_REPORTS:     ${{ secrets.NOTION_DB_REPORTS }}
+          NOTION_DB_TECNICA:     ${{ secrets.NOTION_DB_TECNICA }}
+          NOTION_DB_NEWS:        ${{ secrets.NOTION_DB_NEWS }}
+          NOTION_PARENT_PAGE_ID: ${{ secrets.NOTION_PARENT_PAGE_ID }}
+        run: python main.py --test-sheets
+
+      - name: Test — Download prezzi (3 asset campione)
+        if: ${{ inputs.test_target == 'all' || inputs.test_target == 'prices' }}
+        run: |
+          python -c "
+          from data.price_fetcher import fetch_asset_data, compute_indicators
+          import sys
+          test_tickers = [('S&P 500', '^GSPC'), ('Gold', 'GC=F'), ('Bitcoin ETF', 'IBIT')]
+          errors = 0
+          for name, ticker in test_tickers:
+              df = fetch_asset_data(ticker)
+              if df is not None:
+                  ind = compute_indicators(df)
+                  print(f'  OK {name} ({ticker}): {ind[\"price\"]} | {ind[\"rsi_signal\"]}')
+              else:
+                  print(f'  FAIL {name} ({ticker})')
+                  errors += 1
+          sys.exit(errors)
+          "
+
+      - name: Test — Feed RSS (2 feed campione)
+        if: ${{ inputs.test_target == 'all' || inputs.test_target == 'news' }}
+        run: |
+          python -c "
+          from data.news_reader import fetch_feed
+          feeds = [
+              {'name': 'Reuters', 'url': 'https://feeds.reuters.com/reuters/businessNews', 'priority': 1},
+              {'name': 'ECB',     'url': 'https://www.ecb.europa.eu/rss/press.html',       'priority': 1},
+          ]
+          for f in feeds:
+              items = fetch_feed(f, hours_back=72)
+              print(f'  {f[\"name\"]}: {len(items)} notizie trovate')
+          "
