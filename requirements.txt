@@ -1,0 +1,39 @@
+# MacroEdge — dipendenze Python
+# pip install -r requirements.txt
+
+# Dati di mercato
+yfinance==0.2.38
+pandas==2.2.2
+pandas-ta==0.3.14b0
+numpy==1.26.4
+
+# RSS & news
+feedparser==6.0.11
+requests==2.32.3
+beautifulsoup4==4.12.3
+
+# ── AI Provider (scegli quello che usi) ──────────────────────────
+# Groq — CONSIGLIATO, gratuito (pip installa comunque tutto)
+groq==0.9.0
+# Gemini — gratuito
+google-generativeai==0.7.2
+# Mistral — tier gratuito
+mistralai==1.0.3
+# Anthropic Claude — a pagamento
+anthropic==0.27.0
+# Libreria OpenAI (usata da Groq/Mistral/OpenRouter come client)
+openai==1.35.0
+
+# Notion
+notion-client==2.2.1
+
+# Telegram
+python-telegram-bot==21.3
+
+# Scheduler
+APScheduler==3.10.4
+
+# Utility
+python-dotenv==1.0.1
+pytz==2024.1
+colorlog==6.8.2
