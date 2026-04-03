@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtualenv
+venv/
+.venv/
+env/
+
+# Credenziali e segreti
+.env
+credentials.json
+notion_ids.json
+*.json.bak
+
+# Logs e cache di MacroEdge
+logs/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
