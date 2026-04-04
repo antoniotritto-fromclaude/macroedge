@@ -1,8 +1,6 @@
 # .github/workflows/test_telegram.yml
 # ================================================================
 # MacroEdge — Test rapido Telegram
-# Eseguibile con un click dal tab Actions di GitHub.
-# Non chiama l'AI, non legge RSS: va subito su Telegram.
 # ================================================================
 
 name: MacroEdge — Test Telegram
@@ -16,14 +14,17 @@ on:
         default: "status"
         type: choice
         options:
-          - "status"   # stato del sistema (default)
-          - "sample"   # report di esempio completo
-          - "alert"    # test alert correlazione dollaro
+          - "status"
+          - "sample"
+          - "alert"
       messaggio:
         description: "Messaggio personalizzato (solo se tipo = status)"
         required: false
         default: ""
         type: string
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   test_telegram:
@@ -46,6 +47,30 @@ jobs:
 
       - name: Crea cartella logs
         run: mkdir -p logs
+
+      # ── Verifica secrets prima di procedere ──────────────────
+      - name: Verifica secrets Telegram
+        run: |
+          if [ -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]; then
+            echo "❌ ERRORE: Secret TELEGRAM_BOT_TOKEN non configurato!"
+            echo ""
+            echo "Come configurarlo:"
+            echo "  1. Vai su GitHub → repo → Settings → Secrets and variables → Actions"
+            echo "  2. Clicca 'New repository secret'"
+            echo "  3. Name: TELEGRAM_BOT_TOKEN  |  Value: il token del tuo bot (da @BotFather)"
+            echo "  4. Fai lo stesso per TELEGRAM_CHAT_ID (ID del canale, es. -100XXXXXXXXX)"
+            exit 1
+          fi
+          if [ -z "${{ secrets.TELEGRAM_CHAT_ID }}" ]; then
+            echo "❌ ERRORE: Secret TELEGRAM_CHAT_ID non configurato!"
+            echo ""
+            echo "Come trovare il Chat ID:"
+            echo "  1. Manda un messaggio nel tuo canale Telegram"
+            echo "  2. Visita: https://api.telegram.org/bot<TOKEN>/getUpdates"
+            echo "  3. Cerca: \"chat\":{\"id\": -100XXXXXXXXX}"
+            exit 1
+          fi
+          echo "✅ Secrets configurati correttamente"
 
       - name: Invia test — stato sistema
         if: ${{ inputs.tipo == 'status' && inputs.messaggio == '' }}

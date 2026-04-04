@@ -23,6 +23,9 @@ on:
           - "prices"
           - "news"
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   test_connections:
     name: "Test connessioni MacroEdge"
