@@ -43,6 +43,14 @@ NOTION_DB_NEWS        = os.getenv("NOTION_DB_NEWS", "")
 
 TIMEZONE = "Europe/Rome"
 
+# ── Orari scheduler ───────────────────────────────────────────────
+# Ciclo A: raccolta domenica sera → report lunedì mattina
+SCHEDULE_ANALYSIS_SUN = os.getenv("SCHEDULE_ANALYSIS_SUN", "21:00")
+SCHEDULE_REPORT_MON   = os.getenv("SCHEDULE_REPORT_MON",   "07:00")
+# Ciclo B: raccolta mercoledì sera → report giovedì mattina
+SCHEDULE_ANALYSIS_WED = os.getenv("SCHEDULE_ANALYSIS_WED", "21:00")
+SCHEDULE_REPORT_THU   = os.getenv("SCHEDULE_REPORT_THU",   "07:00")
+
 # ================================================================
 # ASSET UNIVERSE — 65 asset · 14 categorie
 # ================================================================
