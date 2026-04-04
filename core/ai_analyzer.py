@@ -20,6 +20,7 @@ from config import (
     GEMINI_API_KEY, GEMINI_MODEL,
     MISTRAL_API_KEY, MISTRAL_MODEL,
     ANTHROPIC_API_KEY, CLAUDE_MODEL,
+    CATEGORY_LABELS,
 )
 
 logger = logging.getLogger("macroedge.ai")
@@ -33,7 +34,7 @@ def _call_groq(prompt: str) -> str:
         model=GROQ_MODEL,
         messages=[{"role": "user", "content": prompt}],
         temperature=0.3,
-        max_tokens=2000,
+        max_tokens=3000,
     )
     return r.choices[0].message.content
 
@@ -45,7 +46,7 @@ def _call_gemini(prompt: str) -> str:
     model = genai.GenerativeModel(GEMINI_MODEL)
     r = model.generate_content(
         prompt,
-        generation_config=genai.GenerationConfig(temperature=0.3, max_output_tokens=2000)
+        generation_config=genai.GenerationConfig(temperature=0.3, max_output_tokens=3000)
     )
     return r.text
 
@@ -58,7 +59,7 @@ def _call_mistral(prompt: str) -> str:
         model=MISTRAL_MODEL,
         messages=[{"role": "user", "content": prompt}],
         temperature=0.3,
-        max_tokens=2000,
+        max_tokens=3000,
     )
     return r.choices[0].message.content
 
@@ -69,7 +70,7 @@ def _call_anthropic(prompt: str) -> str:
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     r = client.messages.create(
         model=CLAUDE_MODEL,
-        max_tokens=2000,
+        max_tokens=3000,
         messages=[{"role": "user", "content": prompt}],
     )
     return r.content[0].text
@@ -92,18 +93,30 @@ def _call_ai(prompt: str) -> str:
 
 
 def _build_technical_summary(snapshot: list) -> str:
-    lines = []
+    """Raggruppa gli asset per categoria nel riepilogo tecnico."""
+    from collections import defaultdict
+    by_cat = defaultdict(list)
     for a in snapshot:
-        chg = a.get("change_1d_pct", 0)
-        dxy = a.get("dxy_correlation")
-        lines.append(
-            f"• {a.get('name','')} ({a.get('ticker','')}) [{a.get('category','')}]\n"
-            f"  Prezzo: {a.get('price','N/A')} | 1D: {chg:+.2f}% | {a.get('rsi_signal','N/A')}\n"
-            f"  Trend: {a.get('trend','N/A')}\n"
-            f"  Sup: {a.get('support_20d','N/A')} | Res: {a.get('resistance_20d','N/A')}"
-            + (f" | Corr.DXY: {dxy:.2f}" if dxy is not None else "")
-        )
-    return "\n\n".join(lines)
+        by_cat[a.get("category", "other")].append(a)
+
+    sections = []
+    for cat, assets in by_cat.items():
+        label = CATEGORY_LABELS.get(cat, cat.upper())
+        lines = [f"=== {label} ==="]
+        for a in assets:
+            chg = a.get("change_1d_pct", 0) or 0
+            dxy = a.get("dxy_correlation")
+            atr = a.get("atr")
+            lines.append(
+                f"• {a.get('name','')} ({a.get('ticker','')})\n"
+                f"  Prezzo: {a.get('price','N/A')} | 1D: {chg:+.2f}% | {a.get('rsi_signal','N/A')}\n"
+                f"  Trend: {a.get('trend','N/A')}\n"
+                f"  Sup20d: {a.get('support_20d','N/A')} | Res20d: {a.get('resistance_20d','N/A')}"
+                + (f" | ATR: {atr}" if atr is not None else "")
+                + (f" | Corr.DXY: {dxy:.2f}" if dxy is not None else "")
+            )
+        sections.append("\n".join(lines))
+    return "\n\n".join(sections)
 
 
 def _build_prompt(cycle: str, technical_summary: str, news_text: str) -> str:
@@ -111,10 +124,13 @@ def _build_prompt(cycle: str, technical_summary: str, news_text: str) -> str:
     report_day = "Lunedì" if cycle == "A" else "Giovedì"
     window     = "sabato e domenica" if cycle == "A" else "mercoledì"
 
-    return f"""Sei MacroEdge, un sistema di analisi finanziaria quantitativa.
+    return f"""Sei MacroEdge, un sistema di analisi finanziaria quantitativa professionale.
 Oggi è {today}. Prepara il report operativo per {report_day} mattina.
+L'universo copre ~130 asset: indici globali, valute FX, commodities, obbligazioni,
+ETF settoriali/regionali, crypto ETF, e azioni individuali di USA, Europa (IT/FR/UK/DE/ES),
+Cina, Giappone, Brasile e Messico.
 
-DATI TECNICI (chiusura precedente):
+DATI TECNICI PER CATEGORIA (chiusura precedente):
 {technical_summary}
 
 NEWS {window.upper()}:
@@ -122,10 +138,13 @@ NEWS {window.upper()}:
 
 COMPITO:
 1. Identifica la DIVERGENZA CHIAVE: asset il cui prezzo non riflette ancora le news.
-2. Trova trade ideas dove news e tecnica concordano.
-3. Segnala rischi correlazione DXY se presente.
+2. Trova 2-3 trade ideas dove news e tecnica concordano, con livelli Entry/Stop/Target precisi.
+   - Per trade Short: suggerisci sempre un ETF inverso alternativo (es. SH, PSQ, SDS, DOG).
+   - Usa ATR per dimensionare lo stop: stop = entry ± 1.5×ATR.
+3. Seleziona le TOP 5 OPPORTUNITÀ singole (azioni o ETF) con il miglior setup tecnico+news.
+4. Segnala alert correlazione DXY e altre correlazioni anomale tra asset.
 
-Rispondi ESCLUSIVAMENTE con JSON valido. Zero testo prima o dopo.
+Rispondi ESCLUSIVAMENTE con JSON valido. Zero testo prima o dopo il JSON.
 
 {{
   "report_day": "{report_day}",
@@ -134,33 +153,60 @@ Rispondi ESCLUSIVAMENTE con JSON valido. Zero testo prima o dopo.
   "sentiment_score": 0,
   "divergenza_chiave": {{
     "descrizione": "spiegazione divergenza",
-    "asset_coinvolto": "nome",
-    "news_che_cambia_tutto": "titolo news",
+    "asset_coinvolto": "nome asset",
+    "news_che_cambia_tutto": "titolo news chiave",
     "impatto_atteso": "Long|Short",
     "urgenza": "Alta|Media"
   }},
   "trade_ideas": [
     {{
-      "settore": "nome",
+      "settore": "nome settore/tema",
       "direzione": "Long|Short",
       "forza_segnale": "Alta|Media|Bassa",
-      "causa_news": "quale evento guida",
-      "causa_tecnica": "stato tecnico",
-      "logica_completa": "2-3 frasi",
-      "etf": [{{"ticker": "XXX", "nome": "nome", "note": "perché"}}],
+      "entry": "prezzo o range di ingresso",
+      "stop_loss": "prezzo di stop (1.5×ATR)",
+      "take_profit": "prezzo target",
+      "rischio_rendimento": "1:2",
+      "atr_note": "ATR asset principale per sizing posizione",
+      "causa_news": "quale evento guida il trade",
+      "causa_tecnica": "stato tecnico che conferma",
+      "logica_completa": "2-3 frasi che spiegano il setup",
+      "etf": [{{"ticker": "XXX", "nome": "nome ETF long", "note": "perché"}}],
+      "etf_inverso": [{{"ticker": "SH", "nome": "nome ETF inverso", "note": "alternativa Short"}}],
       "azioni": [
-        {{"ticker": "AAA", "nome": "azienda", "catalizzatore": "evento"}},
-        {{"ticker": "BBB", "nome": "azienda", "catalizzatore": "evento"}},
-        {{"ticker": "CCC", "nome": "azienda", "catalizzatore": "evento"}},
-        {{"ticker": "DDD", "nome": "azienda", "catalizzatore": "evento"}}
+        {{"ticker": "AAA", "nome": "azienda", "paese": "US|IT|FR|UK|DE|ES|CN|JP|BR|MX", "catalizzatore": "evento"}},
+        {{"ticker": "BBB", "nome": "azienda", "paese": "...", "catalizzatore": "evento"}},
+        {{"ticker": "CCC", "nome": "azienda", "paese": "...", "catalizzatore": "evento"}}
       ],
-      "timeframe_giorni": "3-7",
-      "livelli": {{"supporto": "val", "resistenza": "val", "stop_loss_indicativo": "val"}}
+      "timeframe_giorni": "3-7"
+    }}
+  ],
+  "top5_opportunita": [
+    {{
+      "rank": 1,
+      "ticker": "AAPL",
+      "nome": "Apple",
+      "paese": "US",
+      "direzione": "Long|Short",
+      "catalizzatore": "evento news o tecnico che crea il setup",
+      "entry": "prezzo",
+      "stop": "prezzo",
+      "target": "prezzo",
+      "forza": "Alta|Media",
+      "timeframe_giorni": "3-7"
+    }}
+  ],
+  "alert_correlazioni": [
+    {{
+      "asset1": "nome",
+      "asset2": "nome",
+      "tipo": "divergenza|inversione|rottura",
+      "descrizione": "spiegazione breve dell'anomalia"
     }}
   ],
   "alert_dollaro": false,
   "alert_dollaro_dettaglio": "",
-  "macro_outlook": "2-3 frasi",
+  "macro_outlook": "2-3 frasi sull'outlook macro della settimana",
   "da_monitorare": ["evento 1", "evento 2", "evento 3"]
 }}"""
 
@@ -176,9 +222,10 @@ def analyze(cycle: str, snapshot: list, news_list: list) -> Optional[dict]:
         format_news_for_ai(news_list, max_items=25)
     )
 
+    raw = ""
     for attempt in range(2):
         try:
-            raw   = _call_ai(prompt) if attempt == 0 else _call_ai(
+            raw = _call_ai(prompt) if attempt == 0 else _call_ai(
                 f"Restituisci SOLO il JSON corretto, zero testo extra:\n\n{raw}"
             )
             clean = raw.strip()
@@ -190,8 +237,13 @@ def analyze(cycle: str, snapshot: list, news_list: list) -> Optional[dict]:
                         break
 
             report = json.loads(clean)
-            report.update({"generated_at": datetime.now().isoformat(), "cycle": cycle, "provider_used": AI_PROVIDER})
-            logger.info(f"  OK — Bias: {report.get('bias','N/A')}")
+            report.update({
+                "generated_at": datetime.now().isoformat(),
+                "cycle": cycle,
+                "provider_used": AI_PROVIDER,
+                "asset_count": len(snapshot),
+            })
+            logger.info(f"  OK — Bias: {report.get('bias','N/A')} | Top5: {len(report.get('top5_opportunita',[]))}")
             return report
 
         except json.JSONDecodeError as e:
