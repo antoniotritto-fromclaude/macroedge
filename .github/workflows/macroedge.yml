@@ -58,6 +58,9 @@ jobs:
     name: "Genera e invia report MacroEdge"
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Se attivato da schedule, controlla la variabile SCHEDULE_ACTIVE.
+    # I run manuali (workflow_dispatch) partono sempre.
+    if: github.event_name == 'workflow_dispatch' || vars.SCHEDULE_ACTIVE != 'false'
 
     steps:
       # ── 1. Checkout ───────────────────────────────────────────
