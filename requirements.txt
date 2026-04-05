@@ -3,8 +3,8 @@
 
 # Dati di mercato
 yfinance==0.2.38
+multitasking==0.0.11
 pandas==2.2.2
-pandas-ta==0.3.14b0
 numpy==1.26.4
 
 # RSS & news
@@ -21,8 +21,6 @@ google-generativeai==0.7.2
 mistralai==1.0.3
 # Anthropic Claude — a pagamento
 anthropic==0.27.0
-# Libreria OpenAI (usata da Groq/Mistral/OpenRouter come client)
-openai==1.35.0
 
 # Notion
 notion-client==2.2.1
