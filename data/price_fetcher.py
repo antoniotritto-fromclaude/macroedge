@@ -165,35 +165,40 @@ def _compute_dxy_correlation(asset_df: pd.DataFrame, dxy_df: pd.DataFrame) -> Op
 def _extract_ticker_df(raw: pd.DataFrame, ticker: str) -> Optional[pd.DataFrame]:
     """
     Estrae il DataFrame di un singolo ticker dal risultato batch di yfinance.
-    Gestisce sia MultiIndex (batch) che DataFrame normale (singolo ticker).
+    Gestisce tutte le varianti di MultiIndex prodotte da diverse versioni di yfinance.
     """
+    required = {"Open", "High", "Low", "Close"}
     try:
-        if isinstance(raw.columns, pd.MultiIndex):
-            # yfinance batch con group_by="ticker": livello 0 = ticker, livello 1 = OHLCV
-            level0 = raw.columns.get_level_values(0).unique().tolist()
-            level1 = raw.columns.get_level_values(1).unique().tolist()
+        # Caso 1: DataFrame semplice (singolo ticker o già estratto)
+        if not isinstance(raw.columns, pd.MultiIndex):
+            df = raw.copy().dropna(how="all")
+            return df if len(df) >= 20 and required.issubset(df.columns) else None
 
-            # Determina la struttura: (ticker, Price) o (Price, ticker)
-            ohlcv_cols = {"Open", "High", "Low", "Close", "Volume"}
-            if ticker in level0 and any(c in ohlcv_cols for c in level1):
-                df = raw[ticker].copy()
-            elif ticker in level1 and any(c in ohlcv_cols for c in level0):
-                df = raw.xs(ticker, axis=1, level=1).copy()
-            else:
-                return None
-        else:
-            df = raw.copy()
+        # Caso 2: MultiIndex — prova struttura (ticker, OHLCV) — group_by="ticker"
+        try:
+            df = raw[ticker].copy().dropna(how="all")
+            if len(df) >= 20 and required.issubset(df.columns):
+                return df
+        except (KeyError, TypeError):
+            pass
 
-        df = df.dropna(how="all")
-        if df.empty or len(df) < 20:
-            return None
+        # Caso 3: MultiIndex — prova struttura (OHLCV, ticker) — default yfinance
+        try:
+            df = raw.xs(ticker, axis=1, level=1).copy().dropna(how="all")
+            if len(df) >= 20 and required.issubset(df.columns):
+                return df
+        except (KeyError, TypeError):
+            pass
 
-        # Assicura che le colonne OHLCV siano presenti
-        required = {"Open", "High", "Low", "Close"}
-        if not required.issubset(set(df.columns)):
-            return None
+        # Caso 4: prova con livelli scambiati
+        try:
+            df = raw.swaplevel(axis=1)[ticker].copy().dropna(how="all")
+            if len(df) >= 20 and required.issubset(df.columns):
+                return df
+        except (KeyError, TypeError):
+            pass
 
-        return df
+        return None
 
     except Exception as e:
         logger.debug(f"  Errore estrazione {ticker}: {e}")
@@ -230,8 +235,7 @@ def get_full_market_snapshot(assets: list) -> list:
             group_by="ticker",
             auto_adjust=True,
             progress=False,
-            threads=True,
-            timeout=120,
+            threads=False,   # False = più stabile in ambienti CI
         )
         if raw is None or raw.empty:
             raw = None

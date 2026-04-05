@@ -326,6 +326,39 @@ def start_scheduler():
 
 # ── CLI ───────────────────────────────────────────────────────────
 
+def _check_required_secrets() -> bool:
+    """
+    Verifica che i secret obbligatori siano configurati.
+    Mostra un messaggio chiaro nel log se mancano.
+    """
+    from config import (TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID,
+                        AI_PROVIDER, GROQ_API_KEY, GEMINI_API_KEY,
+                        MISTRAL_API_KEY, ANTHROPIC_API_KEY)
+    ok = True
+
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        logger.error("❌ TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID non configurati in GitHub Secrets")
+        ok = False
+
+    ai_keys = {
+        "groq":      GROQ_API_KEY,
+        "gemini":    GEMINI_API_KEY,
+        "mistral":   MISTRAL_API_KEY,
+        "anthropic": ANTHROPIC_API_KEY,
+    }
+    if not ai_keys.get(AI_PROVIDER, ""):
+        logger.error(
+            f"❌ {AI_PROVIDER.upper()}_API_KEY non configurata in GitHub Secrets "
+            f"(AI_PROVIDER='{AI_PROVIDER}')"
+        )
+        ok = False
+
+    if ok:
+        logger.info(f"✓ Secret verificati — AI: {AI_PROVIDER.upper()} | Telegram: configurato")
+
+    return ok
+
+
 def main():
     setup_logging()
     os.makedirs("logs", exist_ok=True)
@@ -345,6 +378,9 @@ def main():
     args = parser.parse_args()
 
     if args.run_now:
+        if not _check_required_secrets():
+            logger.error("Secrets mancanti — interrompo. Configura i secrets in GitHub → Settings → Secrets → Actions")
+            sys.exit(1)
         logger.info(f"Esecuzione manuale ciclo {args.run_now}")
         run_full_cycle(args.run_now)
 
