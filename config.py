@@ -40,6 +40,46 @@ NOTION_DB_NEWS        = os.getenv("NOTION_DB_NEWS", "")
 
 TIMEZONE = "Europe/Rome"
 
+# ── EIA (U.S. Energy Information Administration) ─────────────────
+# API gratuita → https://www.eia.gov/opendata/register.php
+# Se non configurato, il fetcher usa solo i dati RSS/Yahoo
+EIA_API_KEY = os.getenv("EIA_API_KEY", "")
+
+# ================================================================
+# TASSI DI POLICY BANCHE CENTRALI
+# !! AGGIORNA MANUALMENTE DOPO OGNI DECISIONE DI TASSO !!
+# Data ultimo aggiornamento: 2025-07
+# ================================================================
+POLICY_RATES = {
+    # valuta: {"rate": float%, "bank": str, "bias": "hawkish|neutral|dovish"}
+    "USD": {"rate": 4.50, "bank": "Federal Reserve",  "bias": "dovish"},
+    "EUR": {"rate": 3.00, "bank": "ECB",              "bias": "dovish"},
+    "GBP": {"rate": 4.50, "bank": "Bank of England",  "bias": "neutral"},
+    "JPY": {"rate": 0.50, "bank": "Bank of Japan",    "bias": "hawkish"},
+    "CHF": {"rate": 0.25, "bank": "SNB",              "bias": "dovish"},
+    "CAD": {"rate": 3.25, "bank": "Bank of Canada",   "bias": "dovish"},
+    "AUD": {"rate": 4.10, "bank": "RBA",              "bias": "neutral"},
+    "CNH": {"rate": 3.10, "bank": "PBoC",             "bias": "dovish"},
+    "BRL": {"rate": 13.75,"bank": "BACEN",            "bias": "hawkish"},
+    "MXN": {"rate": 10.00,"bank": "Banxico",          "bias": "dovish"},
+}
+
+# Mappa ticker FX → coppia di valute (base, quote)
+FX_PAIR_CURRENCIES = {
+    "EURUSD=X": ("EUR", "USD"),
+    "GBPUSD=X": ("GBP", "USD"),
+    "JPY=X":    ("USD", "JPY"),
+    "CHF=X":    ("USD", "CHF"),
+    "CAD=X":    ("USD", "CAD"),
+    "AUDUSD=X": ("AUD", "USD"),
+    "EURJPY=X": ("EUR", "JPY"),
+    "EURCHF=X": ("EUR", "CHF"),
+    "CNH=X":    ("USD", "CNH"),
+    "BRL=X":    ("USD", "BRL"),
+    "MXN=X":    ("USD", "MXN"),
+    "EURGBP=X": ("EUR", "GBP"),
+}
+
 # ── Orari scheduler ───────────────────────────────────────────────
 SCHEDULE_ANALYSIS_SUN = os.getenv("SCHEDULE_ANALYSIS_SUN", "21:00")
 SCHEDULE_REPORT_MON   = os.getenv("SCHEDULE_REPORT_MON",   "07:00")

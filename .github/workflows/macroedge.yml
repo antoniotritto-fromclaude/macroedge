@@ -17,16 +17,17 @@
 # SECRETS DA CONFIGURARE in GitHub → Settings → Secrets → Actions:
 #   TELEGRAM_BOT_TOKEN
 #   TELEGRAM_CHAT_ID
-#   NOTION_API_KEY
-#   NOTION_PARENT_PAGE_ID
-#   NOTION_DB_REPORTS
-#   NOTION_DB_TECNICA
-#   NOTION_DB_NEWS
 #   AI_PROVIDER          (groq | gemini | mistral | anthropic)
 #   GROQ_API_KEY         (se usi Groq)
 #   GEMINI_API_KEY       (se usi Gemini)
 #   MISTRAL_API_KEY      (se usi Mistral)
 #   ANTHROPIC_API_KEY    (se usi Anthropic)
+#   NOTION_API_KEY       (opzionale)
+#   NOTION_PARENT_PAGE_ID (opzionale)
+#   NOTION_DB_REPORTS    (opzionale)
+#   NOTION_DB_TECNICA    (opzionale)
+#   NOTION_DB_NEWS       (opzionale)
+#   EIA_API_KEY          (opzionale — dati settimanali petrolio EIA)
 # ================================================================
 
 name: MacroEdge — Report Automatico
@@ -114,6 +115,7 @@ jobs:
           NOTION_DB_TECNICA:     ${{ secrets.NOTION_DB_TECNICA }}
           NOTION_DB_NEWS:        ${{ secrets.NOTION_DB_NEWS }}
           NOTION_PARENT_PAGE_ID: ${{ secrets.NOTION_PARENT_PAGE_ID }}
+          EIA_API_KEY:           ${{ secrets.EIA_API_KEY }}
         run: python main.py --run-now ${{ env.CYCLE }}
 
       # ── 7. Salva report JSON come artifact ────────────────────

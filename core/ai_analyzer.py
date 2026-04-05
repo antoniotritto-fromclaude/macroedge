@@ -119,10 +119,20 @@ def _build_technical_summary(snapshot: list) -> str:
     return "\n\n".join(sections)
 
 
-def _build_prompt(cycle: str, technical_summary: str, news_text: str) -> str:
+def _build_prompt(cycle: str, technical_summary: str, news_text: str,
+                  fx_context: str = "", eia_context: str = "", geo_context: str = "") -> str:
     today      = datetime.now().strftime("%A %d %B %Y")
     report_day = "Lunedì" if cycle == "A" else "Giovedì"
     window     = "sabato e domenica" if cycle == "A" else "mercoledì"
+
+    # Sezioni opzionali — incluse solo se hanno contenuto
+    specialized_sections = ""
+    if fx_context:
+        specialized_sections += f"\n\n{fx_context}"
+    if eia_context:
+        specialized_sections += f"\n\n{eia_context}"
+    if geo_context:
+        specialized_sections += f"\n\n{geo_context}"
 
     return f"""Sei MacroEdge, un sistema di analisi finanziaria quantitativa professionale.
 Oggi è {today}. Prepara il report operativo per {report_day} mattina.
@@ -131,7 +141,7 @@ ETF settoriali/regionali, crypto ETF, e azioni individuali di USA, Europa (IT/FR
 Cina, Giappone, Brasile e Messico.
 
 DATI TECNICI PER CATEGORIA (chiusura precedente):
-{technical_summary}
+{technical_summary}{specialized_sections}
 
 NEWS {window.upper()}:
 {news_text}
@@ -141,8 +151,12 @@ COMPITO:
 2. Trova 2-3 trade ideas dove news e tecnica concordano, con livelli Entry/Stop/Target precisi.
    - Per trade Short: suggerisci sempre un ETF inverso alternativo (es. SH, PSQ, SDS, DOG).
    - Usa ATR per dimensionare lo stop: stop = entry ± 1.5×ATR.
+   - Per trade FX: considera il carry trade bias dai differenziali di tasso.
+   - Per trade Energia: pesa i dati EIA (crude stocks draw/build) vs trend tecnico.
+   - Per trade EM/Latam: considera il rischio geopolitico e USD/BRL, USD/MXN.
 3. Seleziona le TOP 5 OPPORTUNITÀ singole (azioni o ETF) con il miglior setup tecnico+news.
 4. Segnala alert correlazione DXY e altre correlazioni anomale tra asset.
+5. Per ogni trade, specifica il paese dell'azione se si tratta di un singolo titolo.
 
 Rispondi ESCLUSIVAMENTE con JSON valido. Zero testo prima o dopo il JSON.
 
@@ -211,15 +225,26 @@ Rispondi ESCLUSIVAMENTE con JSON valido. Zero testo prima o dopo il JSON.
 }}"""
 
 
-def analyze(cycle: str, snapshot: list, news_list: list) -> Optional[dict]:
+def analyze(cycle: str, snapshot: list, news_list: list,
+            fx_data: list = None, eia_data: dict = None, geo_data: dict = None) -> Optional[dict]:
     from data.news_reader import format_news_for_ai
+    from data.fx_analyzer import format_fx_context
+    from data.eia_fetcher import format_eia_context
+    from data.geo_risk_scorer import format_geo_context
 
     logger.info(f"Analisi — Ciclo {'A (Lunedì)' if cycle == 'A' else 'B (Giovedì)'} | {AI_PROVIDER.upper()}")
+
+    fx_ctx  = format_fx_context(fx_data or [])
+    eia_ctx = format_eia_context(eia_data or {})
+    geo_ctx = format_geo_context(geo_data or {})
 
     prompt = _build_prompt(
         cycle,
         _build_technical_summary(snapshot),
-        format_news_for_ai(news_list, max_items=25)
+        format_news_for_ai(news_list, max_items=25),
+        fx_context=fx_ctx,
+        eia_context=eia_ctx,
+        geo_context=geo_ctx,
     )
 
     raw = ""
