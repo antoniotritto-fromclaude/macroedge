@@ -14,9 +14,7 @@
 # ================================================================
 
 import logging
-import re
-from datetime import datetime, timezone
-from typing import Optional
+import math
 
 logger = logging.getLogger("macroedge.geo_risk")
 
@@ -161,7 +159,6 @@ def score_geopolitical_risk(news_list: list) -> dict:
                 risk_on_score += hit_score
 
     # Normalizza score 0-10 con soft cap logaritmico
-    import math
     normalized = min(10.0, round(math.log1p(total_score) * 1.5, 1)) if total_score > 0 else 0.0
 
     # Livello

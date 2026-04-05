@@ -20,7 +20,6 @@
 
 import logging
 import requests
-from typing import Optional
 
 logger = logging.getLogger("macroedge.eia")
 
@@ -126,23 +125,6 @@ def fetch_eia_data(api_key: str) -> dict:
     return results
 
 
-def _4w_trend(api_key: str, path: str, series_id: str) -> Optional[str]:
-    """Calcola il trend a 4 settimane (crescente/decrescente/piatto)."""
-    try:
-        data = _fetch_series(api_key, path, series_id, n_weeks=5)
-        if len(data) < 5:
-            return None
-        values = [float(d["value"]) for d in data[:5]]
-        # media ultime 2 vs media precedenti 3
-        recent = sum(values[:2]) / 2
-        older  = sum(values[2:]) / 3
-        if recent > older * 1.01:
-            return "crescente"
-        elif recent < older * 0.99:
-            return "decrescente"
-        return "stabile"
-    except Exception:
-        return None
 
 
 def format_eia_context(eia_data: dict) -> str:

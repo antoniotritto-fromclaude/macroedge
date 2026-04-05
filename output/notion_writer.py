@@ -14,6 +14,7 @@
 import os
 import json
 import logging
+import time
 from datetime import datetime
 from typing import Optional
 from notion_client import Client
@@ -134,16 +135,30 @@ def log_report(report: dict, cycle: str) -> bool:
 def log_technical_snapshot(snapshot: list, cycle: str) -> bool:
     """
     Salva lo snapshot tecnico nel database '📈 Dati Tecnici'.
+    Limita a 75 asset (macro + ETF principali) per rispettare i rate limit Notion.
     """
     if not NOTION_DB_TECNICA:
         logger.warning("NOTION_DB_TECNICA non configurato — skip")
         return True
 
+    # Priorità: macro asset (indici, FX, bonds, commodities, ETF) → poi azioni
+    PRIORITY_CATEGORIES = {
+        "energy", "metals_precious", "metals_industrial",
+        "index_us", "index_eu", "index_asia",
+        "fx", "bonds", "agriculture", "softs",
+        "etf_sector", "etf_global", "etf_em", "etf_latam", "crypto_etf",
+        "pe_usa",
+    }
+    priority = [a for a in snapshot if a.get("category") in PRIORITY_CATEGORIES]
+    others   = [a for a in snapshot if a.get("category") not in PRIORITY_CATEGORIES]
+    # Max 75 asset per rispettare il rate limit Notion (3 req/s)
+    to_save = (priority + others)[:75]
+
     notion = _client()
     cycle_label = "Lunedì" if cycle == "A" else "Giovedì"
     errors = 0
 
-    for asset in snapshot:
+    for asset in to_save:
         rsi = asset.get("rsi")
         price = asset.get("price", 0)
         chg = asset.get("change_1d_pct", 0)
@@ -185,13 +200,13 @@ def log_technical_snapshot(snapshot: list, cycle: str) -> bool:
                 parent={"database_id": NOTION_DB_TECNICA},
                 properties=props
             )
+            time.sleep(0.35)  # max ~2.8 req/s, sotto il limite Notion di 3 req/s
         except Exception as e:
             logger.error(f"  Errore Notion tecnica {asset.get('ticker','?')}: {e}")
             errors += 1
 
-    total = len(snapshot)
-    ok = total - errors
-    logger.info(f"  ✓ Dati tecnici su Notion: {ok}/{total} asset")
+    ok = len(to_save) - errors
+    logger.info(f"  ✓ Dati tecnici su Notion: {ok}/{len(to_save)} asset (di {len(snapshot)} totali)")
     return errors == 0
 
 

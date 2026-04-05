@@ -17,7 +17,7 @@ import os
 import logging
 import colorlog
 import argparse
-from datetime import datetime
+from datetime import datetime, timedelta
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
 import pytz
@@ -73,6 +73,7 @@ def run_data_collection(cycle: str):
     from data.fx_analyzer import compute_fx_differentials
     from data.eia_fetcher import fetch_eia_data
     from data.geo_risk_scorer import score_geopolitical_risk
+    from data.usda_fetcher import fetch_usda_data
 
     logger.info(f"{'='*50}")
     logger.info(f"FASE 1 — Raccolta Dati | Ciclo {'A (→ Lunedì)' if cycle == 'A' else 'B (→ Giovedì)'}")
@@ -88,16 +89,36 @@ def run_data_collection(cycle: str):
     news_list = fetch_all_news(RSS_FEEDS, hours_back=hours_back)
 
     # 3. Analisi FX differenziali (usa snapshot già scaricato + tassi da config)
-    logger.info("Calcolo differenziali FX e carry trade bias...")
-    fx_data = compute_fx_differentials(snapshot)
+    fx_data = {}
+    try:
+        logger.info("Calcolo differenziali FX e carry trade bias...")
+        fx_data = compute_fx_differentials(snapshot)
+    except Exception as e:
+        logger.error(f"FX analyzer fallito: {e}")
 
     # 4. Dati EIA settimanali (energia)
-    logger.info("Download dati EIA settimanali...")
-    eia_data = fetch_eia_data(EIA_API_KEY)
+    eia_data = {}
+    try:
+        logger.info("Download dati EIA settimanali...")
+        eia_data = fetch_eia_data(EIA_API_KEY)
+    except Exception as e:
+        logger.error(f"EIA fetcher fallito: {e}")
 
     # 5. Scoring rischio geopolitico da news
-    logger.info("Scoring rischio geopolitico...")
-    geo_data = score_geopolitical_risk(news_list)
+    geo_data = {}
+    try:
+        logger.info("Scoring rischio geopolitico...")
+        geo_data = score_geopolitical_risk(news_list)
+    except Exception as e:
+        logger.error(f"Geo-risk scorer fallito: {e}")
+
+    # 6. Dati USDA supply & demand agricoltura (API pubblica, no key)
+    usda_data = {}
+    try:
+        logger.info("Download dati USDA WASDE agricoltura...")
+        usda_data = fetch_usda_data()
+    except Exception as e:
+        logger.error(f"USDA fetcher fallito: {e}")
 
     # Salva tutto in cache locale
     cache_dir = f"logs/cache_cycle_{cycle}_{datetime.now().strftime('%Y%m%d')}"
@@ -113,18 +134,20 @@ def run_data_collection(cycle: str):
         json.dump(eia_data, f, ensure_ascii=False, indent=2, default=str)
     with open(f"{cache_dir}/geo_data.json", "w", encoding="utf-8") as f:
         json.dump(geo_data, f, ensure_ascii=False, indent=2, default=str)
+    with open(f"{cache_dir}/usda_data.json", "w", encoding="utf-8") as f:
+        json.dump(usda_data, f, ensure_ascii=False, indent=2, default=str)
 
     logger.info(f"Cache salvata in {cache_dir}")
     logger.info(
         f"FASE 1 completata — {len(snapshot)} asset | {len(news_list)} news | "
         f"{len(fx_data)} coppie FX | EIA: {len(eia_data)} serie | "
-        f"Geo-risk: {geo_data.get('score', 0)}/10"
+        f"USDA: {len(usda_data)} commodity | Geo-risk: {geo_data.get('score', 0)}/10"
     )
-    return snapshot, news_list, fx_data, eia_data, geo_data
+    return snapshot, news_list, fx_data, eia_data, geo_data, usda_data
 
 
 def run_analysis_and_report(cycle: str, snapshot=None, news_list=None,
-                             fx_data=None, eia_data=None, geo_data=None):
+                             fx_data=None, eia_data=None, geo_data=None, usda_data=None):
     """
     FASE 2 — Analisi AI e invio report (lunedì 07:00 / giovedì 07:00).
     Carica i dati dalla cache se non passati direttamente.
@@ -140,8 +163,7 @@ def run_analysis_and_report(cycle: str, snapshot=None, news_list=None,
 
     # Carica dalla cache se i dati non sono passati direttamente
     if snapshot is None or news_list is None:
-        today = datetime.now().strftime("%Y%m%d")
-        from datetime import timedelta
+        today     = datetime.now().strftime("%Y%m%d")
         yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y%m%d")
         loaded = False
         for date_str in [today, yesterday]:
@@ -154,29 +176,33 @@ def run_analysis_and_report(cycle: str, snapshot=None, news_list=None,
                 with open(news_file, "r", encoding="utf-8") as f:
                     news_list = json.load(f)
                 # Carica dati specializzati dalla cache (se presenti)
-                for fname, varname in [("fx_data.json", "fx_data"), ("eia_data.json", "eia_data"), ("geo_data.json", "geo_data")]:
+                for fname, varname in [("fx_data.json", "fx_data"), ("eia_data.json", "eia_data"),
+                                        ("geo_data.json", "geo_data"), ("usda_data.json", "usda_data")]:
                     fpath = f"{cache_dir}/{fname}"
                     if os.path.exists(fpath):
                         with open(fpath, "r", encoding="utf-8") as f:
                             if varname == "fx_data" and fx_data is None:
-                                fx_data  = json.load(f)
+                                fx_data   = json.load(f)
                             elif varname == "eia_data" and eia_data is None:
-                                eia_data = json.load(f)
+                                eia_data  = json.load(f)
                             elif varname == "geo_data" and geo_data is None:
-                                geo_data = json.load(f)
+                                geo_data  = json.load(f)
+                            elif varname == "usda_data" and usda_data is None:
+                                usda_data = json.load(f)
                 logger.info(f"Cache caricata da {cache_dir}")
                 loaded = True
                 break
         if not loaded:
             logger.warning("Cache non trovata — raccolta dati in tempo reale")
-            snapshot, news_list, fx_data, eia_data, geo_data = run_data_collection(cycle)
+            snapshot, news_list, fx_data, eia_data, geo_data, usda_data = run_data_collection(cycle)
 
     # ── Analisi AI ────────────────────────────────────────────────
     logger.info("Avvio analisi AI...")
     report = analyze(cycle, snapshot, news_list,
                      fx_data=fx_data or [],
                      eia_data=eia_data or {},
-                     geo_data=geo_data or {})
+                     geo_data=geo_data or {},
+                     usda_data=usda_data or {})
 
     if report is None:
         error_msg = f"Errore nella generazione del report (Ciclo {'A' if cycle == 'A' else 'B'}) — controlla i log"
@@ -198,18 +224,18 @@ def run_analysis_and_report(cycle: str, snapshot=None, news_list=None,
     else:
         logger.error("  ✗ Telegram: FALLITO")
 
-    # ── Salva su Google Sheets ────────────────────────────────────
-    logger.info("Scrittura su Google Sheets...")
+    # ── Salva su Notion ───────────────────────────────────────────
+    logger.info("Scrittura su Notion...")
     try:
-        sh_report = log_report(report, cycle)
-        sh_tech   = log_technical_snapshot(snapshot, cycle)
-        sh_news   = log_news_batch(news_list, cycle)
-        if sh_report and sh_tech and sh_news:
-            logger.info("  ✓ Google Sheets: OK")
+        n_report = log_report(report, cycle)
+        n_tech   = log_technical_snapshot(snapshot, cycle)
+        n_news   = log_news_batch(news_list, cycle)
+        if n_report and n_tech and n_news:
+            logger.info("  ✓ Notion: OK")
         else:
-            logger.warning("  ⚠ Google Sheets: scrittura parziale")
+            logger.warning("  ⚠ Notion: scrittura parziale (controlla NOTION_API_KEY)")
     except Exception as e:
-        logger.error(f"  ✗ Google Sheets: {e}")
+        logger.warning(f"  ⚠ Notion non disponibile: {e}")
 
     # ── Alert dollaro separato ────────────────────────────────────
     if report.get("alert_dollaro") and report.get("alert_dollaro_dettaglio"):
@@ -226,8 +252,8 @@ def run_full_cycle(cycle: str):
     Utile per test o per rieseguire manualmente.
     """
     logger.info(f"Esecuzione ciclo completo {cycle} (raccolta + analisi)...")
-    snapshot, news_list, fx_data, eia_data, geo_data = run_data_collection(cycle)
-    run_analysis_and_report(cycle, snapshot, news_list, fx_data, eia_data, geo_data)
+    snapshot, news_list, fx_data, eia_data, geo_data, usda_data = run_data_collection(cycle)
+    run_analysis_and_report(cycle, snapshot, news_list, fx_data, eia_data, geo_data, usda_data)
 
 
 # ── Scheduler ─────────────────────────────────────────────────────

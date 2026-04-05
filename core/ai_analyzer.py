@@ -120,7 +120,8 @@ def _build_technical_summary(snapshot: list) -> str:
 
 
 def _build_prompt(cycle: str, technical_summary: str, news_text: str,
-                  fx_context: str = "", eia_context: str = "", geo_context: str = "") -> str:
+                  fx_context: str = "", eia_context: str = "",
+                  geo_context: str = "", usda_context: str = "") -> str:
     today      = datetime.now().strftime("%A %d %B %Y")
     report_day = "Lunedì" if cycle == "A" else "Giovedì"
     window     = "sabato e domenica" if cycle == "A" else "mercoledì"
@@ -131,6 +132,8 @@ def _build_prompt(cycle: str, technical_summary: str, news_text: str,
         specialized_sections += f"\n\n{fx_context}"
     if eia_context:
         specialized_sections += f"\n\n{eia_context}"
+    if usda_context:
+        specialized_sections += f"\n\n{usda_context}"
     if geo_context:
         specialized_sections += f"\n\n{geo_context}"
 
@@ -153,6 +156,7 @@ COMPITO:
    - Usa ATR per dimensionare lo stop: stop = entry ± 1.5×ATR.
    - Per trade FX: considera il carry trade bias dai differenziali di tasso.
    - Per trade Energia: pesa i dati EIA (crude stocks draw/build) vs trend tecnico.
+   - Per trade Agricoltura: usa Stock-to-Use ratio USDA per identificare mercati stretti.
    - Per trade EM/Latam: considera il rischio geopolitico e USD/BRL, USD/MXN.
 3. Seleziona le TOP 5 OPPORTUNITÀ singole (azioni o ETF) con il miglior setup tecnico+news.
 4. Segnala alert correlazione DXY e altre correlazioni anomale tra asset.
@@ -226,17 +230,20 @@ Rispondi ESCLUSIVAMENTE con JSON valido. Zero testo prima o dopo il JSON.
 
 
 def analyze(cycle: str, snapshot: list, news_list: list,
-            fx_data: list = None, eia_data: dict = None, geo_data: dict = None) -> Optional[dict]:
+            fx_data: list = None, eia_data: dict = None,
+            geo_data: dict = None, usda_data: dict = None) -> Optional[dict]:
     from data.news_reader import format_news_for_ai
     from data.fx_analyzer import format_fx_context
     from data.eia_fetcher import format_eia_context
     from data.geo_risk_scorer import format_geo_context
+    from data.usda_fetcher import format_usda_context
 
     logger.info(f"Analisi — Ciclo {'A (Lunedì)' if cycle == 'A' else 'B (Giovedì)'} | {AI_PROVIDER.upper()}")
 
-    fx_ctx  = format_fx_context(fx_data or [])
-    eia_ctx = format_eia_context(eia_data or {})
-    geo_ctx = format_geo_context(geo_data or {})
+    fx_ctx   = format_fx_context(fx_data or [])
+    eia_ctx  = format_eia_context(eia_data or {})
+    geo_ctx  = format_geo_context(geo_data or {})
+    usda_ctx = format_usda_context(usda_data or {})
 
     prompt = _build_prompt(
         cycle,
@@ -245,6 +252,7 @@ def analyze(cycle: str, snapshot: list, news_list: list,
         fx_context=fx_ctx,
         eia_context=eia_ctx,
         geo_context=geo_ctx,
+        usda_context=usda_ctx,
     )
 
     raw = ""

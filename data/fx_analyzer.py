@@ -16,11 +16,6 @@ from config import POLICY_RATES, FX_PAIR_CURRENCIES
 
 logger = logging.getLogger("macroedge.fx_analyzer")
 
-# Indicatori di divergenza carry: se il prezzo si muove CONTRO il carry
-# (es. EUR/USD scende nonostante EUR abbia tasso più alto di USD),
-# segnala un regime risk-off o un'anomalia da monitorare.
-CARRY_DIVERGENCE_THRESHOLD_PCT = 1.5  # variazione % settimanale sufficiente a segnalare divergenza
-
 
 def compute_fx_differentials(snapshot: list) -> list:
     """
