@@ -31,10 +31,14 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from dotenv import load_dotenv
 load_dotenv()
 
+import logging
+
 from telegram import Update, BotCommand
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 from telegram.constants import ParseMode
 from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+
+logger = logging.getLogger("macroedge.bot_listener")
 
 
 # ── Handler comandi ────────────────────────────────────────────────
@@ -206,6 +210,25 @@ async def cmd_next(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
 
 
+# ── Inoltro messaggi al canale ────────────────────────────────────
+
+async def handle_forward(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Inoltra al canale ogni messaggio non-comando ricevuto dal bot.
+    Il bot deve essere amministratore del canale target.
+    """
+    if not TELEGRAM_CHAT_ID or update.message is None:
+        return
+    try:
+        await context.bot.forward_message(
+            chat_id=TELEGRAM_CHAT_ID,
+            from_chat_id=update.message.chat_id,
+            message_id=update.message.message_id,
+        )
+    except Exception as e:
+        logger.warning(f"Forward al canale fallito: {e}")
+
+
 # ── Registra comandi su BotFather ─────────────────────────────────
 
 async def register_commands():
@@ -252,6 +275,9 @@ def main():
     app.add_handler(CommandHandler("sample", cmd_sample))
     app.add_handler(CommandHandler("status", cmd_status))
     app.add_handler(CommandHandler("next",   cmd_next))
+
+    # Inoltra al canale tutti i messaggi non-comando
+    app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, handle_forward))
 
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
