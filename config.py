@@ -6,7 +6,8 @@ load_dotenv()
 
 # ── Provider AI — scegli uno solo ────────────────────────────────
 # Opzioni: "groq" (gratis) | "gemini" (gratis) | "mistral" (gratis) | "anthropic" (pagamento)
-AI_PROVIDER = os.getenv("AI_PROVIDER", "groq")
+# Se AI_PROVIDER non è configurato come secret GitHub, usa "groq" come default
+AI_PROVIDER = (os.getenv("AI_PROVIDER") or "groq").strip().lower()
 
 # Groq — CONSIGLIATO (gratis, veloce) → groq.com
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")

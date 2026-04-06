@@ -103,7 +103,8 @@ jobs:
       # ── 6. Esegui MacroEdge ───────────────────────────────────
       - name: Esegui analisi MacroEdge
         env:
-          AI_PROVIDER:           ${{ secrets.AI_PROVIDER }}
+          # Se AI_PROVIDER non è nei secret → default "groq"
+          AI_PROVIDER:           ${{ secrets.AI_PROVIDER || 'groq' }}
           GROQ_API_KEY:          ${{ secrets.GROQ_API_KEY }}
           GEMINI_API_KEY:        ${{ secrets.GEMINI_API_KEY }}
           MISTRAL_API_KEY:       ${{ secrets.MISTRAL_API_KEY }}
