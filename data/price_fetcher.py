@@ -217,8 +217,20 @@ def get_full_market_snapshot(assets: list) -> list:
     Returns:
         Lista di dict con indicatori tecnici completi.
     """
-    tickers   = [a["ticker"] for a in assets]
-    asset_map = {a["ticker"]: a for a in assets}
+    # Se il batch fallisce, scarica solo i top 60 asset prioritari (non tutti 141)
+    PRIORITY_CATS = {
+        "energy", "metals_precious", "metals_industrial",
+        "index_us", "index_eu", "index_asia", "fx", "bonds",
+        "agriculture", "softs", "etf_sector", "etf_global",
+        "etf_em", "crypto_etf",
+    }
+    priority_assets = [a for a in assets if a.get("category") in PRIORITY_CATS]
+    other_assets    = [a for a in assets if a.get("category") not in PRIORITY_CATS]
+    # Ordine: priorità macro prima, poi azioni
+    assets_ordered  = priority_assets + other_assets
+
+    tickers   = [a["ticker"] for a in assets_ordered]
+    asset_map = {a["ticker"]: a for a in assets_ordered}
 
     end   = datetime.now()
     start = end - timedelta(days=LOOKBACK_DAYS)
@@ -256,11 +268,18 @@ def get_full_market_snapshot(assets: list) -> list:
         logger.warning("  DXY non disponibile — correlazioni non calcolate")
 
     # ── Processa ogni asset ────────────────────────────────────────
+    # Se il batch ha fallito, limita i fallback individuali ai top 60
+    # per evitare 141 × 30s = 70 minuti nel caso peggiore
+    assets_to_process = assets_ordered
+    if raw is None:
+        assets_to_process = assets_ordered[:60]
+        logger.warning(f"  Batch fallito: fallback limitato a {len(assets_to_process)} asset prioritari")
+
     results = []
     ok   = 0
     fail = 0
 
-    for asset in assets:
+    for asset in assets_to_process:
         ticker = asset["ticker"]
         name   = asset["name"]
 

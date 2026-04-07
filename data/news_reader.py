@@ -12,6 +12,7 @@
 import feedparser
 import logging
 import re
+import requests
 import time
 from datetime import datetime, timezone, timedelta
 from email.utils import parsedate_to_datetime
@@ -137,7 +138,16 @@ def fetch_feed(feed: dict, hours_back: int = 48) -> list:
     cutoff = datetime.now(tz=timezone.utc) - timedelta(hours=hours_back)
 
     try:
-        parsed = feedparser.parse(feed["url"])
+        # Fetch con timeout esplicito per evitare hang infiniti
+        try:
+            resp = requests.get(
+                feed["url"],
+                timeout=10,
+                headers={"User-Agent": "MacroEdge/1.0"},
+            )
+            parsed = feedparser.parse(resp.text)
+        except requests.exceptions.RequestException:
+            parsed = feedparser.parse(feed["url"])  # fallback senza requests
 
         if parsed.bozo and not parsed.entries:
             logger.warning(f"  Feed non raggiungibile o mal-formattato: {feed['name']}")
