@@ -20,7 +20,7 @@ from typing import Optional
 logger = logging.getLogger("macroedge.price_fetcher")
 
 # Giorni di dati scaricati per avere abbastanza storia per MA200 + ATR
-LOOKBACK_DAYS = 260
+LOOKBACK_DAYS = 210
 
 
 def fetch_asset_data(ticker: str, period_days: int = LOOKBACK_DAYS) -> Optional[pd.DataFrame]:
@@ -235,7 +235,8 @@ def get_full_market_snapshot(assets: list) -> list:
             group_by="ticker",
             auto_adjust=True,
             progress=False,
-            threads=False,   # False = più stabile in ambienti CI
+            threads=True,    # Parallelo = molto più veloce in CI (~15s vs 7+ min)
+            timeout=90,      # Evita blocchi infiniti
         )
         if raw is None or raw.empty:
             raw = None

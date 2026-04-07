@@ -58,7 +58,7 @@ jobs:
   macroedge_report:
     name: "Genera e invia report MacroEdge"
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     # Se attivato da schedule, controlla la variabile SCHEDULE_ACTIVE.
     # I run manuali (workflow_dispatch) partono sempre.
     if: github.event_name == 'workflow_dispatch' || vars.SCHEDULE_ACTIVE != 'false'
@@ -117,6 +117,7 @@ jobs:
           NOTION_DB_NEWS:        ${{ secrets.NOTION_DB_NEWS }}
           NOTION_PARENT_PAGE_ID: ${{ secrets.NOTION_PARENT_PAGE_ID }}
           EIA_API_KEY:           ${{ secrets.EIA_API_KEY }}
+        timeout-minutes: 18
         run: python main.py --run-now ${{ env.CYCLE }}
 
       # ── 7. Salva report JSON come artifact ────────────────────
