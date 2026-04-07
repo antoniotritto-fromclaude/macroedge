@@ -80,7 +80,7 @@ def _fetch_commodity_data(commodity_code: str, country: str = COUNTRY_WORLD,
         "marketYear":    market_year,
     }
     try:
-        r = requests.get(USDA_FAS_API, params=params, timeout=20)
+        r = requests.get(USDA_FAS_API, params=params, timeout=8)
         r.raise_for_status()
         return r.json()
     except requests.exceptions.HTTPError as e:

@@ -17,6 +17,7 @@ import os
 import logging
 import colorlog
 import argparse
+import concurrent.futures
 from datetime import datetime, timedelta
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -112,11 +113,16 @@ def run_data_collection(cycle: str):
     except Exception as e:
         logger.error(f"Geo-risk scorer fallito: {e}")
 
-    # 6. Dati USDA supply & demand agricoltura (API pubblica, no key)
+    # 6. Dati USDA supply & demand agricoltura (API pubblica, no key) — max 45s
     usda_data = {}
     try:
-        logger.info("Download dati USDA WASDE agricoltura...")
-        usda_data = fetch_usda_data()
+        logger.info("Download dati USDA WASDE agricoltura (max 45s)...")
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+            fut = ex.submit(fetch_usda_data)
+            try:
+                usda_data = fut.result(timeout=45)
+            except concurrent.futures.TimeoutError:
+                logger.warning("USDA timeout (>45s) — skip, continuo senza dati agricoltura")
     except Exception as e:
         logger.error(f"USDA fetcher fallito: {e}")
 
@@ -224,16 +230,25 @@ def run_analysis_and_report(cycle: str, snapshot=None, news_list=None,
     else:
         logger.error("  ✗ Telegram: FALLITO")
 
-    # ── Salva su Notion ───────────────────────────────────────────
-    logger.info("Scrittura su Notion...")
+    # ── Salva su Notion (max 90s totali) ─────────────────────────
+    logger.info("Scrittura su Notion (max 90s)...")
     try:
-        n_report = log_report(report, cycle)
-        n_tech   = log_technical_snapshot(snapshot, cycle)
-        n_news   = log_news_batch(news_list, cycle)
-        if n_report and n_tech and n_news:
-            logger.info("  ✓ Notion: OK")
-        else:
-            logger.warning("  ⚠ Notion: scrittura parziale (controlla NOTION_API_KEY)")
+        def _write_notion():
+            nr = log_report(report, cycle)
+            nt = log_technical_snapshot(snapshot, cycle)
+            nn = log_news_batch(news_list, cycle)
+            return nr, nt, nn
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+            fut = ex.submit(_write_notion)
+            try:
+                n_report, n_tech, n_news = fut.result(timeout=90)
+                if n_report and n_tech and n_news:
+                    logger.info("  ✓ Notion: OK")
+                else:
+                    logger.warning("  ⚠ Notion: scrittura parziale (controlla NOTION_API_KEY)")
+            except concurrent.futures.TimeoutError:
+                logger.warning("  ⚠ Notion timeout (>90s) — report già inviato su Telegram")
     except Exception as e:
         logger.warning(f"  ⚠ Notion non disponibile: {e}")
 
