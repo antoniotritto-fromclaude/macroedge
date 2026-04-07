@@ -58,7 +58,7 @@ jobs:
   macroedge_report:
     name: "Genera e invia report MacroEdge"
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     # Se attivato da schedule, controlla la variabile SCHEDULE_ACTIVE.
     # I run manuali (workflow_dispatch) partono sempre.
     if: github.event_name == 'workflow_dispatch' || vars.SCHEDULE_ACTIVE != 'false'
@@ -102,6 +102,7 @@ jobs:
 
       # ── 6. Esegui MacroEdge ───────────────────────────────────
       - name: Esegui analisi MacroEdge
+        timeout-minutes: 18
         env:
           # Se AI_PROVIDER non è nei secret → default "groq"
           AI_PROVIDER:           ${{ secrets.AI_PROVIDER || 'groq' }}
