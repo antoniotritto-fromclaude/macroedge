@@ -28,8 +28,7 @@ def _escape_md(text: str) -> str:
 def _format_report_message(report: dict) -> list[str]:
     """
     Formatta il report JSON in messaggi Telegram leggibili.
-    Restituisce una lista di stringhe (messaggi separati) per gestire
-    report lunghi con molti asset e trade ideas.
+    Restituisce una lista di stringhe (messaggi separati).
     """
     report_day   = report.get("report_day", "Report")
     bias         = report.get("bias", "N/A")
@@ -52,28 +51,31 @@ def _format_report_message(report: dict) -> list[str]:
 
     # ── MESSAGGIO 1: Header + Bias + Divergenza ───────────────────
     m1 = []
-    m1.append(f"📊 *MACROEDGE — {_escape_md(report_day.upper())}*")
+    m1.append(f"📊 *MACRO FINANCIAL REPORT — {_escape_md(report_day.upper())}*")
     m1.append(f"━━━━━━━━━━━━━━━━━━━━")
     m1.append(f"🕐 {_escape_md(now_str)} \\| 🔭 {_escape_md(str(asset_count))} asset analizzati")
     m1.append("")
 
-    m1.append(f"{bias_emoji} *Bias:* {_escape_md(bias)}")
-    m1.append(f"📌 *Causa:* {_escape_md(bias_causa)}")
+    bias_hint = "mercati in salita, investitori ottimisti" if bias == "Risk-On" else "mercati in calo, investitori cauti" if bias == "Risk-Off" else "direzione incerta"
+    m1.append(f"{bias_emoji} *Bias di mercato:* {_escape_md(bias)} _\\({_escape_md(bias_hint)}\\)_")
+    m1.append(f"📌 *Perché:* {_escape_md(bias_causa)}")
     sentiment_dir = "+" if sentiment > 0 else ""
-    m1.append(f"📊 *Sentiment:* `{sentiment_dir}{sentiment}`")
+    sentiment_hint = "positivo" if sentiment > 2 else "negativo" if sentiment < -2 else "neutro"
+    m1.append(f"📊 *Sentiment notizie:* `{sentiment_dir}{sentiment}` _\\({_escape_md(sentiment_hint)}\\)_")
     m1.append("")
 
     if divergenza:
         urgenza_emoji = "🚨" if divergenza.get("urgenza") == "Alta" else "⚡"
         dir_emoji = "📉" if divergenza.get("impatto_atteso") == "Short" else "📈"
-        m1.append(f"{urgenza_emoji} *DIVERGENZA CHIAVE*")
+        m1.append(f"{urgenza_emoji} *SEGNALE IMPORTANTE*")
+        m1.append(f"_\\(divergenza = notizie e grafici dicono cose diverse — opportunità\\)_")
         m1.append(_escape_md(divergenza.get("descrizione", "")))
         m1.append(f"{dir_emoji} *{_escape_md(divergenza.get('asset_coinvolto',''))}* → {_escape_md(divergenza.get('impatto_atteso',''))}")
         m1.append(f"📰 _{_escape_md(divergenza.get('news_che_cambia_tutto',''))}_")
         m1.append("")
 
     if macro:
-        m1.append(f"🌐 *Macro Outlook:*")
+        m1.append(f"🌐 *Contesto macro globale:*")
         m1.append(_escape_md(macro))
         m1.append("")
 
@@ -96,37 +98,39 @@ def _format_report_message(report: dict) -> list[str]:
         timeframe = trade.get("timeframe_giorni", "N/A")
 
         dir_emoji   = "📈" if direzione == "Long" else "📉"
+        dir_label   = "RIALZO" if direzione == "Long" else "RIBASSO"
         forza_emoji = "🔥" if forza == "Alta" else "⚡" if forza == "Media" else "💧"
 
         mt = []
         mt.append(f"─────────────────────")
-        mt.append(f"{dir_emoji} *TRADE {i}: {_escape_md(settore)}*")
-        mt.append(f"{forza_emoji} {_escape_md(direzione)} \\| Forza: {_escape_md(forza)} \\| ⏱ {_escape_md(str(timeframe))}g")
+        mt.append(f"{dir_emoji} *IDEA {i}: {_escape_md(settore)}*")
+        mt.append(f"{forza_emoji} Direzione: *{_escape_md(dir_label)}* \\| Segnale: {_escape_md(forza)} \\| ⏱ Orizzonte: {_escape_md(str(timeframe))} giorni")
         mt.append("")
 
-        mt.append(f"📐 *Livelli operativi:*")
-        mt.append(f"  Entry: `{_escape_md(str(entry))}`")
-        mt.append(f"  Stop:  `{_escape_md(str(stop_loss))}`")
-        mt.append(f"  Target: `{_escape_md(str(take_prof))}`")
-        mt.append(f"  R/R: {_escape_md(str(rr))}")
+        mt.append(f"📐 *Prezzi chiave:*")
+        mt.append(f"  🟡 Entrata \\(prezzo di ingresso\\): `{_escape_md(str(entry))}`")
+        mt.append(f"  🔴 Stop Loss \\(massima perdita tollerata\\): `{_escape_md(str(stop_loss))}`")
+        mt.append(f"  🟢 Target \\(obiettivo di profitto\\): `{_escape_md(str(take_prof))}`")
+        mt.append(f"  ⚖️ Rischio/Rendimento: {_escape_md(str(rr))}")
         if atr_note:
             mt.append(f"  📏 _{_escape_md(str(atr_note))}_")
         mt.append("")
 
-        mt.append(f"💡 *Logica:*")
+        mt.append(f"💡 *Perché questo trade:*")
         mt.append(_escape_md(logica))
         mt.append("")
 
         if etfs:
-            mt.append("📦 *ETF Long:*")
+            mt.append("📦 *Come operare — ETF \\(strumenti semplici, diversificati\\):*")
             for etf in etfs[:2]:
                 mt.append(f"  • `{etf.get('ticker','')}` — {_escape_md(etf.get('nome',''))}")
         if direzione == "Short" and etfs_inv:
-            mt.append("🔄 *ETF Inverso \\(alternativa Short\\):*")
+            mt.append("🔄 *Alternativa per il ribasso — ETF Inverso:*")
+            mt.append(f"  _\\(guadagna quando il mercato scende\\)_")
             for etf in etfs_inv[:2]:
                 mt.append(f"  • `{etf.get('ticker','')}` — {_escape_md(etf.get('nome',''))}")
         if azioni:
-            mt.append("🔎 *Azioni selezionate:*")
+            mt.append("🔎 *Azioni correlate da tenere d'occhio:*")
             for az in azioni[:4]:
                 paese = az.get("paese", "")
                 flag = {"US":"🇺🇸","IT":"🇮🇹","FR":"🇫🇷","UK":"🇬🇧","DE":"🇩🇪",
@@ -139,9 +143,9 @@ def _format_report_message(report: dict) -> list[str]:
     # ── MESSAGGIO: Top 5 Opportunità ──────────────────────────────
     if top5:
         mt5 = []
-        mt5.append(f"🏆 *TOP 5 OPPORTUNITÀ*")
+        mt5.append(f"🏆 *TOP 5 OPPORTUNITÀ DELLA SETTIMANA*")
         mt5.append(f"━━━━━━━━━━━━━━━━━━━━")
-        mt5.append(f"_Migliori setup tecnico \\+ news dell'universo_")
+        mt5.append(f"_I 5 asset con il miglior segnale tecnico e fondamentale tra i 141 monitorati_")
         mt5.append("")
 
         for opp in top5[:5]:
@@ -160,12 +164,13 @@ def _format_report_message(report: dict) -> list[str]:
             flag = {"US":"🇺🇸","IT":"🇮🇹","FR":"🇫🇷","UK":"🇬🇧","DE":"🇩🇪",
                     "ES":"🇪🇸","CN":"🇨🇳","JP":"🇯🇵","BR":"🇧🇷","MX":"🇲🇽"}.get(paese, "🌐")
             dir_emoji = "📈" if direzione == "Long" else "📉"
-            forza_star = "⭐⭐" if forza == "Alta" else "⭐"
+            dir_label = "RIALZO" if direzione == "Long" else "RIBASSO"
+            forza_star = "⭐⭐ Alta" if forza == "Alta" else "⭐ Media"
 
-            mt5.append(f"*{rank}\\. {flag} `{ticker}` — {_escape_md(nome)}*")
-            mt5.append(f"  {dir_emoji} {_escape_md(direzione)} {forza_star} \\| {_escape_md(str(tf))}g")
+            mt5.append(f"*{rank}\\. {flag} {_escape_md(nome)}* \\(`{ticker}`\\)")
+            mt5.append(f"  {dir_emoji} {_escape_md(dir_label)} — {forza_star} — {_escape_md(str(tf))} giorni")
             mt5.append(f"  💡 {_escape_md(cataliz)}")
-            mt5.append(f"  📐 E:`{_escape_md(str(entry))}` S:`{_escape_md(str(stop))}` T:`{_escape_md(str(target))}`")
+            mt5.append(f"  🟡 Entrata: `{_escape_md(str(entry))}` 🔴 Stop: `{_escape_md(str(stop))}` 🟢 Target: `{_escape_md(str(target))}`")
             mt5.append("")
 
         messages.append("\n".join(mt5))
@@ -174,7 +179,8 @@ def _format_report_message(report: dict) -> list[str]:
     mfooter = []
 
     if alert_corr:
-        mfooter.append(f"⚠️ *ALERT CORRELAZIONI*")
+        mfooter.append(f"⚠️ *CORRELAZIONI DA TENERE D'OCCHIO*")
+        mfooter.append(f"_\\(quando due asset si muovono insieme o in modo insolito\\)_")
         for ac in alert_corr[:3]:
             mfooter.append(
                 f"  • {_escape_md(ac.get('asset1',''))} ↔ {_escape_md(ac.get('asset2',''))}: "
@@ -184,18 +190,20 @@ def _format_report_message(report: dict) -> list[str]:
 
     if alert_dollar and alert_detail:
         mfooter.append(f"💵 *ALERT DOLLARO \\(DXY\\)*")
+        mfooter.append(f"_\\(il dollaro influenza tutte le asset class globali\\)_")
         mfooter.append(_escape_md(alert_detail))
         mfooter.append("")
 
     if monitoring:
-        mfooter.append(f"👁 *Da monitorare questa settimana:*")
+        mfooter.append(f"📅 *Appuntamenti chiave di questa settimana:*")
+        mfooter.append(f"_\\(eventi che possono muovere i mercati\\)_")
         for event in monitoring:
             mfooter.append(f"  • {_escape_md(event)}")
         mfooter.append("")
 
     mfooter.append(f"━━━━━━━━━━━━━━━━━━━━")
-    mfooter.append(f"🤖 _MacroEdge AI \\| Non è consulenza finanziaria_")
-    mfooter.append(f"\\#macroedge \\#{_escape_md(report_day.lower().replace(' ', ''))}")
+    mfooter.append(f"🤖 _Macro Financial Report Ai \\| Analisi Macro sui Mercati Finanziari_")
+    mfooter.append(f"\\#macrofinancialreport")
 
     if mfooter:
         messages.append("\n".join(mfooter))
@@ -206,7 +214,7 @@ def _format_report_message(report: dict) -> list[str]:
 def _format_alert_message(alert_type: str, details: str) -> str:
     emoji = "⚠️" if alert_type == "warning" else "🚨"
     return (
-        f"{emoji} *MACROEDGE ALERT*\n"
+        f"{emoji} *MACRO FINANCIAL REPORT — ALERT*\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"{_escape_md(details)}\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -289,7 +297,7 @@ async def _send_report_async(report: dict) -> bool:
         if not success:
             ok = False
         if i < len(messages) - 1:
-            await asyncio.sleep(2)  # pausa tra messaggi del report
+            await asyncio.sleep(2)
     return ok
 
 
@@ -314,12 +322,12 @@ def send_alert(message: str, alert_type: str = "warning") -> bool:
 def send_startup_message() -> bool:
     """Invia un messaggio di avvio del sistema."""
     msg = (
-        "🚀 *MacroEdge avviato*\n"
+        "🚀 *Macro Financial Report Ai — Avviato*\n"
         "━━━━━━━━━━━━━━━━━━━━\n"
         "Il sistema è operativo\\.\n"
         "📅 *Ciclo A:* Domenica analisi → Lunedì 07:00 report\n"
         "📅 *Ciclo B:* Mercoledì analisi → Giovedì 07:00 report\n"
-        "🔭 *Asset monitorati:* ~130 \\(indici, FX, azioni 10 paesi, ETF, crypto\\)\n"
+        "🔭 *Asset monitorati:* ~141 \\(indici, FX, azioni 10 paesi, ETF, crypto\\)\n"
         "━━━━━━━━━━━━━━━━━━━━\n"
         f"🕐 {_escape_md(datetime.now().strftime('%d/%m/%Y %H:%M'))}"
     )
