@@ -49,24 +49,38 @@ EIA_API_KEY = os.getenv("EIA_API_KEY", "")
 # ================================================================
 # TASSI DI POLICY BANCHE CENTRALI
 # !! AGGIORNA MANUALMENTE DOPO OGNI DECISIONE DI TASSO !!
-# Data ultimo aggiornamento: 2025-07
+# Data ultimo aggiornamento: 2026-04
 # ================================================================
 POLICY_RATES = {
-    # valuta: {"rate": float%, "bank": str, "bias": "hawkish|neutral|dovish"}
-    "USD": {"rate": 4.50, "bank": "Federal Reserve",  "bias": "dovish"},
-    "EUR": {"rate": 3.00, "bank": "ECB",              "bias": "dovish"},
-    "GBP": {"rate": 4.50, "bank": "Bank of England",  "bias": "neutral"},
-    "JPY": {"rate": 0.50, "bank": "Bank of Japan",    "bias": "hawkish"},
-    "CHF": {"rate": 0.25, "bank": "SNB",              "bias": "dovish"},
-    "CAD": {"rate": 3.25, "bank": "Bank of Canada",   "bias": "dovish"},
-    "AUD": {"rate": 4.10, "bank": "RBA",              "bias": "neutral"},
-    "CNH": {"rate": 3.10, "bank": "PBoC",             "bias": "dovish"},
-    "BRL": {"rate": 13.75,"bank": "BACEN",            "bias": "hawkish"},
-    "MXN": {"rate": 10.00,"bank": "Banxico",          "bias": "dovish"},
+    # valuta: {"rate": float%, "bank": str, "bias": "hawkish|neutral|dovish", "region": str}
+    # ── Nord America ───────────────────────────────────────────────
+    "USD": {"rate": 4.50,  "bank": "Federal Reserve", "bias": "dovish",   "region": "north_america"},
+    "CAD": {"rate": 3.25,  "bank": "Bank of Canada",  "bias": "dovish",   "region": "north_america"},
+    "MXN": {"rate": 9.00,  "bank": "Banxico",         "bias": "dovish",   "region": "latam"},
+    # ── Europa ─────────────────────────────────────────────────────
+    "EUR": {"rate": 2.65,  "bank": "ECB",             "bias": "dovish",   "region": "europe"},
+    "GBP": {"rate": 4.50,  "bank": "Bank of England", "bias": "neutral",  "region": "europe"},
+    "CHF": {"rate": 0.25,  "bank": "SNB",             "bias": "dovish",   "region": "europe"},
+    "NOK": {"rate": 4.50,  "bank": "Norges Bank",     "bias": "neutral",  "region": "europe"},
+    # ── Asia/Pacifico ──────────────────────────────────────────────
+    "JPY": {"rate": 0.50,  "bank": "Bank of Japan",   "bias": "hawkish",  "region": "apac"},
+    "AUD": {"rate": 4.10,  "bank": "RBA",             "bias": "neutral",  "region": "apac"},
+    "CNH": {"rate": 3.10,  "bank": "PBoC",            "bias": "dovish",   "region": "apac"},
+    "INR": {"rate": 6.00,  "bank": "RBI",             "bias": "dovish",   "region": "apac"},
+    "IDR": {"rate": 5.75,  "bank": "Bank Indonesia",  "bias": "neutral",  "region": "apac"},
+    "MYR": {"rate": 3.00,  "bank": "BNM",             "bias": "neutral",  "region": "apac"},
+    # ── Medio Oriente ──────────────────────────────────────────────
+    "SAR": {"rate": 5.50,  "bank": "SAMA",            "bias": "neutral",  "region": "middle_east"},
+    # ── Sud America ────────────────────────────────────────────────
+    "BRL": {"rate": 13.75, "bank": "BACEN",           "bias": "hawkish",  "region": "latam"},
+    "COP": {"rate": 9.50,  "bank": "BanRep Colombia", "bias": "dovish",   "region": "latam"},
+    "CLP": {"rate": 5.00,  "bank": "BCCh Chile",      "bias": "neutral",  "region": "latam"},
+    "ARS": {"rate": 32.00, "bank": "BCRA Argentina",  "bias": "hawkish",  "region": "latam"},
 }
 
 # Mappa ticker FX → coppia di valute (base, quote)
 FX_PAIR_CURRENCIES = {
+    # Majors
     "EURUSD=X": ("EUR", "USD"),
     "GBPUSD=X": ("GBP", "USD"),
     "JPY=X":    ("USD", "JPY"),
@@ -75,10 +89,20 @@ FX_PAIR_CURRENCIES = {
     "AUDUSD=X": ("AUD", "USD"),
     "EURJPY=X": ("EUR", "JPY"),
     "EURCHF=X": ("EUR", "CHF"),
+    "EURGBP=X": ("EUR", "GBP"),
+    # EM Asia
     "CNH=X":    ("USD", "CNH"),
+    "INR=X":    ("USD", "INR"),
+    "IDR=X":    ("USD", "IDR"),
+    "MYR=X":    ("USD", "MYR"),
+    # EM Latam
     "BRL=X":    ("USD", "BRL"),
     "MXN=X":    ("USD", "MXN"),
-    "EURGBP=X": ("EUR", "GBP"),
+    "COP=X":    ("USD", "COP"),
+    "CLP=X":    ("USD", "CLP"),
+    "ARS=X":    ("USD", "ARS"),
+    # Europa
+    "NOK=X":    ("USD", "NOK"),
 }
 
 # ── Orari scheduler ───────────────────────────────────────────────
@@ -143,6 +167,16 @@ ASSETS = [
     {"name": "USD/CNH (Yuan offshore)",  "ticker": "CNH=X",      "category": "fx",                "currency": "-"},
     {"name": "USD/BRL",                  "ticker": "BRL=X",      "category": "fx",                "currency": "-"},
     {"name": "USD/MXN",                  "ticker": "MXN=X",      "category": "fx",                "currency": "-"},
+    # FX Emergenti — APAC
+    {"name": "USD/INR (Rupia Indiana)",  "ticker": "INR=X",      "category": "fx",                "currency": "-"},
+    {"name": "USD/IDR (Rupia Indonesiana)","ticker": "IDR=X",    "category": "fx",                "currency": "-"},
+    {"name": "USD/MYR (Ringgit Malesia)","ticker": "MYR=X",      "category": "fx",                "currency": "-"},
+    # FX Emergenti — Latam
+    {"name": "USD/COP (Peso Colombiano)","ticker": "COP=X",      "category": "fx",                "currency": "-"},
+    {"name": "USD/CLP (Peso Cileno)",    "ticker": "CLP=X",      "category": "fx",                "currency": "-"},
+    {"name": "USD/ARS (Peso Argentino)", "ticker": "ARS=X",      "category": "fx",                "currency": "-"},
+    # FX Europa
+    {"name": "USD/NOK (Corona Norvegese)","ticker": "NOK=X",     "category": "fx",                "currency": "-"},
 
     # ── ETF settoriali USA ───────────────────────────────────────
     {"name": "Energy Select ETF (XLE)",  "ticker": "XLE",        "category": "etf_sector",        "currency": "USD"},
@@ -177,6 +211,10 @@ ASSETS = [
     {"name": "Latin America 40 (ILF)",   "ticker": "ILF",        "category": "etf_latam",         "currency": "USD"},
     {"name": "Brazil ETF (EWZ)",         "ticker": "EWZ",        "category": "etf_latam",         "currency": "USD"},
     {"name": "Mexico ETF (EWW)",         "ticker": "EWW",        "category": "etf_latam",         "currency": "USD"},
+
+    # ── Australia / APAC ETF ─────────────────────────────────────
+    {"name": "Australia ETF (EWA)",      "ticker": "EWA",        "category": "etf_global",        "currency": "USD"},
+    {"name": "China ETF MSCI (MCHI)",    "ticker": "MCHI",       "category": "etf_em",            "currency": "USD"},
 
     # ── Soft Commodities ─────────────────────────────────────────
     {"name": "Cocoa ETN (NIB)",          "ticker": "NIB",        "category": "softs",             "currency": "USD"},
@@ -311,8 +349,119 @@ BASKETS = {
     "EU_INDICES":    ["^STOXX50E", "^GDAXI", "^FCHI", "FTSEMIB.MI", "^IBEX", "^FTSE"],
     "ASIA_INDICES":  ["^N225", "^HSI", "000001.SS", "^AXJO"],
     "FX_MAJOR":      ["EURUSD=X", "GBPUSD=X", "JPY=X", "CHF=X", "CAD=X", "AUDUSD=X"],
-    "FX_EM":         ["CNH=X", "BRL=X", "MXN=X"],
+    "FX_EM_ASIA":    ["CNH=X", "INR=X", "IDR=X", "MYR=X"],
+    "FX_EM_LATAM":   ["BRL=X", "MXN=X", "COP=X", "CLP=X"],
+    "FX_EUROPE":     ["NOK=X"],
     "BONDS":         ["^TNX", "^IRX", "HYG", "EMB"],
+    "APAC_ETF":      ["EWJ", "MCHI", "EWA", "INDA", "EWY", "AAXJ"],
+    "LATAM_ETF":     ["EWZ", "EWW", "ILF"],
+    "CB_CORRELATIONS_FX": ["AUDUSD=X", "CAD=X", "BRL=X", "IDR=X", "CLP=X", "NOK=X"],
+}
+
+# ================================================================
+# MACRO REGIONS — raggruppa valute per area geografica
+# ================================================================
+MACRO_REGIONS = {
+    "north_america": {
+        "label": "Nord America",
+        "currencies": ["USD", "CAD"],
+        "key_assets": ["^GSPC", "^NDX", "^DJI", "^RUT", "CL=F", "NG=F"],
+        "cb_focus":   ["Federal Reserve", "Bank of Canada"],
+    },
+    "europe": {
+        "label": "Europa",
+        "currencies": ["EUR", "GBP", "CHF", "NOK"],
+        "key_assets": ["^STOXX50E", "^GDAXI", "^FCHI", "^FTSE", "IBTE.DE"],
+        "cb_focus":   ["ECB", "Bank of England", "SNB", "Norges Bank"],
+    },
+    "apac": {
+        "label": "Asia/Pacifico",
+        "currencies": ["JPY", "AUD", "CNH", "INR", "IDR", "MYR"],
+        "key_assets": ["^N225", "^HSI", "000001.SS", "^AXJO", "EWA", "MCHI", "INDA"],
+        "cb_focus":   ["Bank of Japan", "RBA", "PBoC", "RBI", "Bank Indonesia", "BNM"],
+    },
+    "latam": {
+        "label": "Sud America",
+        "currencies": ["BRL", "MXN", "COP", "CLP", "ARS"],
+        "key_assets": ["EWZ", "EWW", "ILF", "PBR", "VALE"],
+        "cb_focus":   ["BACEN", "Banxico", "BanRep Colombia", "BCCh Chile", "BCRA Argentina"],
+    },
+    "middle_east": {
+        "label": "Medio Oriente",
+        "currencies": ["SAR"],
+        "key_assets": ["KSA"],
+        "cb_focus":   ["SAMA"],
+    },
+}
+
+# ================================================================
+# CB → CURRENCY → COMMODITY CORRELATIONS
+# Correlazioni strutturali tra politica monetaria, FX e commodity
+# ================================================================
+CB_COMMODITY_CORRELATIONS = {
+    "AUD": {
+        "bank":        "RBA",
+        "commodities": ["GC=F", "HG=F", "PICK", "DBB"],
+        "tickers_fx":  ["AUDUSD=X"],
+        "rationale":   "Australia è grande esportatore di oro, rame e minerali ferrosi. AUD↑ → commodity demand forte.",
+        "correlation":  "positiva",  # AUD si muove con i metalli
+    },
+    "CAD": {
+        "bank":        "Bank of Canada",
+        "commodities": ["CL=F", "BZ=F", "NG=F"],
+        "tickers_fx":  ["CAD=X"],
+        "rationale":   "Canada è il maggior fornitore di petrolio agli USA. CAD↑ quando il WTI sale.",
+        "correlation":  "positiva",
+    },
+    "BRL": {
+        "bank":        "BACEN",
+        "commodities": ["JO", "SOYB", "CORN"],
+        "tickers_fx":  ["BRL=X"],
+        "rationale":   "Brasile = 1° esportatore di caffè e soia. BRL si rafforza con le soft commodity.",
+        "correlation":  "positiva",
+    },
+    "IDR": {
+        "bank":        "Bank Indonesia",
+        "commodities": ["DBB", "DBA"],
+        "tickers_fx":  ["IDR=X"],
+        "rationale":   "Indonesia = principale esportatore di nichel e olio di palma. IDR legata ai metalli industriali.",
+        "correlation":  "positiva",
+    },
+    "MYR": {
+        "bank":        "BNM",
+        "commodities": ["DBA"],
+        "tickers_fx":  ["MYR=X"],
+        "rationale":   "Malaysia = grande esportatore di olio di palma e gas naturale liquefatto.",
+        "correlation":  "positiva",
+    },
+    "CLP": {
+        "bank":        "BCCh Chile",
+        "commodities": ["HG=F", "DBB"],
+        "tickers_fx":  ["CLP=X"],
+        "rationale":   "Cile produce oltre il 25% del rame mondiale. CLP e HG=F sono quasi sincronizzati.",
+        "correlation":  "positiva",
+    },
+    "NOK": {
+        "bank":        "Norges Bank",
+        "commodities": ["NG=F", "CL=F", "BZ=F"],
+        "tickers_fx":  ["NOK=X"],
+        "rationale":   "Norvegia è grande esportatore di gas e petrolio nel Nord Europa. NOK↑ con l'energia.",
+        "correlation":  "positiva",
+    },
+    "JPY": {
+        "bank":        "Bank of Japan",
+        "commodities": ["GC=F", "^TNX"],
+        "tickers_fx":  ["JPY=X", "EURJPY=X"],
+        "rationale":   "JPY è valuta rifugio. Si apprezza in risk-off. Correlazione inversa con equity e bond yield USA.",
+        "correlation":  "inversa",
+    },
+    "CHF": {
+        "bank":        "SNB",
+        "commodities": ["GC=F"],
+        "tickers_fx":  ["CHF=X", "EURCHF=X"],
+        "rationale":   "CHF è valuta rifugio come JPY. Si apprezza in crisi geopolitiche e risk-off globale.",
+        "correlation":  "inversa",
+    },
 }
 
 # Mappa categoria → etichetta leggibile (usata nel prompt AI)

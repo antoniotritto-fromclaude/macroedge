@@ -121,7 +121,8 @@ def _build_technical_summary(snapshot: list) -> str:
 
 def _build_prompt(cycle: str, technical_summary: str, news_text: str,
                   fx_context: str = "", eia_context: str = "",
-                  geo_context: str = "", usda_context: str = "") -> str:
+                  geo_context: str = "", usda_context: str = "",
+                  global_macro_context: str = "") -> str:
     today      = datetime.now().strftime("%A %d %B %Y")
     report_day = "Lunedì" if cycle == "A" else "Giovedì"
     window     = "sabato e domenica" if cycle == "A" else "mercoledì"
@@ -136,12 +137,14 @@ def _build_prompt(cycle: str, technical_summary: str, news_text: str,
         specialized_sections += f"\n\n{usda_context}"
     if geo_context:
         specialized_sections += f"\n\n{geo_context}"
+    if global_macro_context:
+        specialized_sections += f"\n\n{global_macro_context}"
 
     return f"""Sei MacroEdge, un sistema di analisi finanziaria quantitativa professionale.
 Oggi è {today}. Prepara il report operativo per {report_day} mattina.
-L'universo copre ~130 asset: indici globali, valute FX, commodities, obbligazioni,
-ETF settoriali/regionali, crypto ETF, e azioni individuali di USA, Europa (IT/FR/UK/DE/ES),
-Cina, Giappone, Brasile e Messico.
+L'universo copre ~150 asset: indici globali, valute FX (incluse EM: IDR, MYR, COP, CLP, ARS, NOK),
+commodities, obbligazioni, ETF settoriali/regionali, crypto ETF, e azioni individuali di USA,
+Europa (IT/FR/UK/DE/ES), Cina, Giappone, Brasile, Messico, e nuovi mercati APAC e Latam.
 
 DATI TECNICI PER CATEGORIA (chiusura precedente):
 {technical_summary}{specialized_sections}
@@ -154,13 +157,16 @@ COMPITO:
 2. Trova 2-3 trade ideas dove news e tecnica concordano, con livelli Entry/Stop/Target precisi.
    - Per trade Short: suggerisci sempre un ETF inverso alternativo (es. SH, PSQ, SDS, DOG).
    - Usa ATR per dimensionare lo stop: stop = entry ± 1.5×ATR.
-   - Per trade FX: considera il carry trade bias dai differenziali di tasso.
+   - Per trade FX: considera il carry trade bias dai differenziali di tasso. Usa la Policy Divergence.
    - Per trade Energia: pesa i dati EIA (crude stocks draw/build) vs trend tecnico.
    - Per trade Agricoltura: usa Stock-to-Use ratio USDA per identificare mercati stretti.
-   - Per trade EM/Latam: considera il rischio geopolitico e USD/BRL, USD/MXN.
+   - Per trade EM/Latam: considera il rischio geopolitico e le valute EM (BRL, MXN, COP, IDR).
+   - Per trade CB→Commodity: sfrutta le divergenze rilevate nel Global Macro Framework.
 3. Seleziona le TOP 5 OPPORTUNITÀ singole (azioni o ETF) con il miglior setup tecnico+news.
 4. Segnala alert correlazione DXY e altre correlazioni anomale tra asset.
 5. Per ogni trade, specifica il paese dell'azione se si tratta di un singolo titolo.
+6. Compila la HEATMAP REGIONALE in JSON (usa i dati del Global Macro Framework se disponibili).
+7. Compila la tabella CB con bias aggiornato per ogni banca centrale.
 
 Rispondi ESCLUSIVAMENTE con JSON valido. Zero testo prima o dopo il JSON.
 
@@ -225,7 +231,33 @@ Rispondi ESCLUSIVAMENTE con JSON valido. Zero testo prima o dopo il JSON.
   "alert_dollaro": false,
   "alert_dollaro_dettaglio": "",
   "macro_outlook": "2-3 frasi sull'outlook macro della settimana",
-  "da_monitorare": ["evento 1", "evento 2", "evento 3"]
+  "da_monitorare": ["evento 1", "evento 2", "evento 3"],
+  "regional_heatmap": [
+    {{
+      "region": "Nord America|Europa|Asia/Pacifico|Sud America|Medio Oriente",
+      "performance_1d": "+0.5%",
+      "segnale": "🟢 Rialzista|🟡 Neutro|🔴 Ribassista",
+      "driver": "evento o fattore principale che muove la regione"
+    }}
+  ],
+  "cb_table": [
+    {{
+      "bank": "Federal Reserve",
+      "currency": "USD",
+      "rate": "4.50%",
+      "bias": "🕊️ Dovish|🦅 Hawkish|⚖️ Neutrale",
+      "prossima_mossa_attesa": "taglio|rialzo|pausa",
+      "impatto_fx": "USD atteso debole/forte a breve"
+    }}
+  ],
+  "cross_asset_opportunities": [
+    {{
+      "titolo": "CB→FX→Commodity play",
+      "descrizione": "descrizione opportunità cross-asset",
+      "asset_coinvolti": ["AUD/USD", "HG=F"],
+      "logica": "correlazione strutturale o divergenza temporanea"
+    }}
+  ]
 }}"""
 
 
@@ -237,13 +269,15 @@ def analyze(cycle: str, snapshot: list, news_list: list,
     from data.eia_fetcher import format_eia_context
     from data.geo_risk_scorer import format_geo_context
     from data.usda_fetcher import format_usda_context
+    from data.global_macro import format_global_macro_context
 
     logger.info(f"Analisi — Ciclo {'A (Lunedì)' if cycle == 'A' else 'B (Giovedì)'} | {AI_PROVIDER.upper()}")
 
-    fx_ctx   = format_fx_context(fx_data or [])
-    eia_ctx  = format_eia_context(eia_data or {})
-    geo_ctx  = format_geo_context(geo_data or {})
-    usda_ctx = format_usda_context(usda_data or {})
+    fx_ctx     = format_fx_context(fx_data or [])
+    eia_ctx    = format_eia_context(eia_data or {})
+    geo_ctx    = format_geo_context(geo_data or {})
+    usda_ctx   = format_usda_context(usda_data or {})
+    global_ctx = format_global_macro_context(snapshot) if snapshot else ""
 
     prompt = _build_prompt(
         cycle,
@@ -253,6 +287,7 @@ def analyze(cycle: str, snapshot: list, news_list: list,
         eia_context=eia_ctx,
         geo_context=geo_ctx,
         usda_context=usda_ctx,
+        global_macro_context=global_ctx,
     )
 
     raw = ""
