@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MacroEdge — Dashboard</title>
+  <title>Macro Financial Report Ai — Dashboard</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -184,13 +184,29 @@
     a:hover { text-decoration: underline; }
 
     .card.full { grid-column: 1 / -1; }
+
+    /* wider grid for 4 col */
+    @media(min-width: 900px) { .grid { grid-template-columns: 1fr 1fr; max-width: 900px; } }
+
+    /* global macro tag */
+    .tag {
+      display: inline-block;
+      background: #1c2128;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-size: .75rem;
+      color: var(--muted);
+      margin: 2px 2px 0;
+    }
   </style>
 </head>
 <body>
 
 <header>
-  <h1>Macro<span>Edge</span> Dashboard</h1>
-  <p>Gestisci report e schedule dal browser</p>
+  <h1>Macro Financial <span>Report Ai</span></h1>
+  <p>Dashboard — Gestisci report e schedule dal browser</p>
+  <p style="margin-top:4px;font-size:.78rem;color:#58a6ff;">🔭 ~150 asset · 5 aree geografiche · 18 banche centrali · Analisi macro AI</p>
 </header>
 
 <!-- TOKEN SETUP BANNER -->
@@ -221,8 +237,9 @@
       </label>
     </div>
     <div class="schedule-info">
-      🟢 Lunedì 07:00 — Ciclo A (report weekend)<br>
-      🟢 Giovedì 07:00 — Ciclo B (report infrasettimanale)
+      🟢 Lunedì 05:30 CET — Ciclo A (report weekend)<br>
+      🟢 Giovedì 05:30 CET — Ciclo B (report infrasettimanale)<br>
+      <span style="font-size:.75rem;opacity:.7">GitHub Actions: 04:30 UTC</span>
     </div>
   </div>
 
@@ -239,6 +256,37 @@
       <button class="btn btn-outline" onclick="triggerTest()">
         📡 Test Telegram
       </button>
+    </div>
+  </div>
+
+  <!-- GLOBAL MACRO COVERAGE -->
+  <div class="card">
+    <h2>🌍 Global Macro Coverage</h2>
+    <div class="schedule-info" style="line-height:1.8;">
+      <div style="margin-bottom:8px;">
+        <strong style="color:#e6edf3;">Aree geografiche monitorate:</strong>
+      </div>
+      <div>🌎 <strong>Nord America</strong> — Fed, BoC · USD, CAD</div>
+      <div>🌍 <strong>Europa</strong> — ECB, BoE, SNB, Norges · EUR, GBP, CHF, NOK</div>
+      <div>🌏 <strong>Asia/Pacifico</strong> — BoJ, RBA, PBoC, RBI, BI, BNM</div>
+      <div>🌎 <strong>Sud America</strong> — BACEN, Banxico, BanRep, BCCh, BCRA</div>
+      <div>🌍 <strong>Medio Oriente</strong> — SAMA · KSA</div>
+      <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
+        🔗 <strong>CB→FX→Commodity:</strong> AUD↔Metalli · CAD↔WTI · BRL↔Soia/Caffè · IDR↔Nichel · CLP↔Rame · NOK↔Gas
+      </div>
+    </div>
+  </div>
+
+  <!-- ASSET UNIVERSE -->
+  <div class="card">
+    <h2>📦 Asset Universe (~150)</h2>
+    <div class="schedule-info" style="line-height:1.8;">
+      <div>📈 <strong>Indici:</strong> US (S&P, NDX, DJ, RUT) · EU (DAX, CAC, MIB, FTSE) · Asia (Nikkei, HSI)</div>
+      <div>💱 <strong>FX:</strong> Majors + EM (IDR, MYR, COP, CLP, ARS, NOK, INR, BRL, MXN)</div>
+      <div>⛽ <strong>Commodity:</strong> Energia · Metalli · Agricoltura · Soft</div>
+      <div>📊 <strong>ETF:</strong> Settoriali · Globali · EM · APAC (EWA, MCHI, INDA) · Latam</div>
+      <div>🏦 <strong>Azioni:</strong> USA · Italia · Francia · UK · Germania · Spagna · Cina · Giappone · Brasile · Messico</div>
+      <div>🪙 <strong>Crypto ETF:</strong> IBIT (BTC) · FETH (ETH)</div>
     </div>
   </div>
 
