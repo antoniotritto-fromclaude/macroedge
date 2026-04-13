@@ -82,10 +82,10 @@ FX_PAIR_CURRENCIES = {
 }
 
 # ── Orari scheduler ───────────────────────────────────────────────
-SCHEDULE_ANALYSIS_SUN = os.getenv("SCHEDULE_ANALYSIS_SUN", "21:00")
-SCHEDULE_REPORT_MON   = os.getenv("SCHEDULE_REPORT_MON",   "07:00")
-SCHEDULE_ANALYSIS_WED = os.getenv("SCHEDULE_ANALYSIS_WED", "21:00")
-SCHEDULE_REPORT_THU   = os.getenv("SCHEDULE_REPORT_THU",   "07:00")
+SCHEDULE_ANALYSIS_SUN = os.getenv("SCHEDULE_ANALYSIS_SUN", "19:30")
+SCHEDULE_REPORT_MON   = os.getenv("SCHEDULE_REPORT_MON",   "05:30")
+SCHEDULE_ANALYSIS_WED = os.getenv("SCHEDULE_ANALYSIS_WED", "19:30")
+SCHEDULE_REPORT_THU   = os.getenv("SCHEDULE_REPORT_THU",   "05:30")
 
 # ================================================================
 # ASSET UNIVERSE — ~130 asset · 24 categorie

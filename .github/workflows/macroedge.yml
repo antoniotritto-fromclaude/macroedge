@@ -3,8 +3,8 @@
 # MacroEdge — automazione completa su GitHub Actions
 #
 # DUE JOB SETTIMANALI:
-#   • Lunedì   06:00 UTC (07:00 CET / 08:00 CEST) → Ciclo A
-#   • Giovedì  06:00 UTC (07:00 CET / 08:00 CEST) → Ciclo B
+#   • Lunedì   04:30 UTC (05:30 CET / 06:30 CEST) → Ciclo A
+#   • Giovedì  04:30 UTC (05:30 CET / 06:30 CEST) → Ciclo B
 #
 # Ogni job fa tutto in un'unica esecuzione:
 #   1. Scarica prezzi da Yahoo Finance
@@ -34,10 +34,10 @@ name: MacroEdge — Report Automatico
 
 on:
   schedule:
-    # Lunedì 06:00 UTC → Ciclo A (report pre-apertura settimana)
-    - cron: "0 6 * * 1"
-    # Giovedì 06:00 UTC → Ciclo B (aggiornamento infrasettimanale)
-    - cron: "0 6 * * 4"
+    # Lunedì 04:30 UTC (05:30 CET) → Ciclo A (report pre-apertura settimana)
+    - cron: "30 4 * * 1"
+    # Giovedì 04:30 UTC (05:30 CET) → Ciclo B (aggiornamento infrasettimanale)
+    - cron: "30 4 * * 4"
 
   # Permetti esecuzione manuale dal tab Actions di GitHub
   workflow_dispatch:
