@@ -123,9 +123,15 @@ def _build_prompt(cycle: str, technical_summary: str, news_text: str,
                   fx_context: str = "", eia_context: str = "",
                   geo_context: str = "", usda_context: str = "",
                   global_macro_context: str = "") -> str:
+    from config import POLICY_RATES
     today      = datetime.now().strftime("%A %d %B %Y")
     report_day = "Lunedì" if cycle == "A" else "Giovedì"
     window     = "sabato e domenica" if cycle == "A" else "mercoledì"
+    # Spread per carry trade hint
+    pol_spread = round(
+        POLICY_RATES.get("USD", {}).get("rate", 0) -
+        POLICY_RATES.get("EUR", {}).get("rate", 0), 2
+    )
 
     # Sezioni opzionali — incluse solo se hanno contenuto
     specialized_sections = ""
@@ -152,21 +158,33 @@ DATI TECNICI PER CATEGORIA (chiusura precedente):
 NEWS {window.upper()}:
 {news_text}
 
+⚠️ REGOLA FONDAMENTALE — USA SEMPRE I PREZZI REALI DAI DATI TECNICI:
+I dati tecnici sopra contengono i prezzi REALI di oggi. Usa ESCLUSIVAMENTE quei prezzi per Entry/Stop/Target.
+NON inventare prezzi. Se un asset non è nei dati tecnici, non citarlo con prezzi.
+
+FOCUS PER CICLO:
+  Ciclo A (Lunedì): Apertura settimana — USA equity, Europa, valute majors, obbligazioni USA.
+  Ciclo B (Giovedì): Aggiornamento — Mercati Emergenti, commodity, APAC, Latam, FX EM.
+Il ciclo attuale è {cycle}. EVITA le stesse idee del ciclo precedente. Copri regioni DIVERSE.
+
 COMPITO:
-1. Identifica la DIVERGENZA CHIAVE: asset il cui prezzo non riflette ancora le news.
-2. Trova 2-3 trade ideas dove news e tecnica concordano, con livelli Entry/Stop/Target precisi.
-   - Per trade Short: suggerisci sempre un ETF inverso alternativo (es. SH, PSQ, SDS, DOG).
-   - Usa ATR per dimensionare lo stop: stop = entry ± 1.5×ATR.
-   - Per trade FX: considera il carry trade bias dai differenziali di tasso. Usa la Policy Divergence.
-   - Per trade Energia: pesa i dati EIA (crude stocks draw/build) vs trend tecnico.
-   - Per trade Agricoltura: usa Stock-to-Use ratio USDA per identificare mercati stretti.
-   - Per trade EM/Latam: considera il rischio geopolitico e le valute EM (BRL, MXN, COP, IDR).
-   - Per trade CB→Commodity: sfrutta le divergenze rilevate nel Global Macro Framework.
-3. Seleziona le TOP 5 OPPORTUNITÀ singole (azioni o ETF) con il miglior setup tecnico+news.
-4. Segnala alert correlazione DXY e altre correlazioni anomale tra asset.
-5. Per ogni trade, specifica il paese dell'azione se si tratta di un singolo titolo.
-6. Compila la HEATMAP REGIONALE in JSON (usa i dati del Global Macro Framework se disponibili).
-7. Compila la tabella CB con bias aggiornato per ogni banca centrale.
+1. Identifica la DIVERGENZA CHIAVE basandoti sui dati tecnici reali forniti.
+2. Trova 2-3 trade ideas con livelli Entry/Stop/Target basati sui PREZZI REALI:
+   - USA ATR del singolo asset per calcolare lo stop: stop = entry ± 1.5×ATR.
+   - Per Short: includi sempre un ETF inverso (SH, PSQ, SDS, DOG, SRTY, EUO, YCS...).
+   - Per FX: sfrutta carry trade (Policy Divergence: spread USD-EUR={pol_spread:.2f}%, USD-JPY).
+   - Per Energia: usa dati EIA se disponibili.
+   - Per Agricoltura: usa Stock-to-Use USDA se disponibili.
+   - Per EM: analizza BRL, MXN, IDR, COP, CLP rispetto alle commodity correlate.
+3. TOP 5 OPPORTUNITÀ: scegli 5 asset DIVERSI tra loro, da REGIONI DIVERSE (no 5 titoli USA tech).
+   Includi almeno 1 EM, 1 Europa o Asia, 1 commodity o FX.
+4. ALERT CORRELAZIONI — richiesta di VARIETÀ obbligatoria:
+   - DEVI includere almeno 1 coppia con valuta EM (BRL, MXN, IDR, CLP, COP, NOK, ARS)
+   - DEVI includere almeno 1 correlazione commodity-commodity (es. Rame↔Petrolio, Gas↔Carbone)
+   - DEVI includere almeno 1 coppia non-DXY (es. EUR/JPY, AUD/USD↔Oro, GBP↔FTSE)
+   - NON ripetere solo Petrolio↔Dollaro e Oro↔Dollaro come unici alert
+5. Per ogni trade specifica il paese (US/IT/FR/UK/DE/ES/CN/JP/BR/MX/AU/IN).
+6. Compila regional_heatmap e cb_table nel JSON (da Global Macro Framework sopra).
 
 Rispondi ESCLUSIVAMENTE con JSON valido. Zero testo prima o dopo il JSON.
 

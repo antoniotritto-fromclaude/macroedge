@@ -500,26 +500,37 @@ CATEGORY_LABELS = {
 # FEED RSS
 # ================================================================
 RSS_FEEDS = [
-    {"name": "Reuters Business",     "url": "https://feeds.reuters.com/reuters/businessNews",       "priority": 1},
-    {"name": "Reuters World",        "url": "https://feeds.reuters.com/Reuters/worldNews",          "priority": 1},
-    {"name": "Bloomberg Markets",    "url": "https://feeds.bloomberg.com/markets/news.rss",         "priority": 1},
-    {"name": "Financial Times",      "url": "https://www.ft.com/rss/home",                          "priority": 1},
-    {"name": "AP Business",          "url": "https://rsshub.app/apnews/topics/business",            "priority": 1},
-    {"name": "Federal Reserve",      "url": "https://www.federalreserve.gov/feeds/press_all.xml",   "priority": 1},
-    {"name": "ECB Releases",         "url": "https://www.ecb.europa.eu/rss/press.html",             "priority": 1},
-    {"name": "Investing.com IT",     "url": "https://it.investing.com/rss/news_14.rss",             "priority": 2},
-    {"name": "TradingEconomics",     "url": "https://tradingeconomics.com/rss/news.aspx",           "priority": 2},
-    {"name": "CNBC Markets",         "url": "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=20910258", "priority": 2},
-    {"name": "Yahoo Finance Energy", "url": "https://finance.yahoo.com/rss/headline?s=XLE",         "priority": 2},
-    {"name": "Yahoo Finance Crypto", "url": "https://finance.yahoo.com/rss/headline?s=IBIT",        "priority": 2},
-    {"name": "Yahoo Finance EM",     "url": "https://finance.yahoo.com/rss/headline?s=EEM",         "priority": 2},
-    {"name": "Il Sole 24 Ore",       "url": "https://www.ilsole24ore.com/rss/finanza-e-mercati.xml","priority": 2},
-    {"name": "MilanoFinanza",        "url": "https://www.milanofinanza.it/rss",                     "priority": 2},
-    {"name": "Seeking Alpha",        "url": "https://seekingalpha.com/market_currents.xml",         "priority": 3},
-    {"name": "CoinDesk",             "url": "https://www.coindesk.com/arc/outboundfeeds/rss/",      "priority": 3},
-    {"name": "Nasdaq News",          "url": "https://www.nasdaq.com/feed/rssoutbound?category=Markets", "priority": 3},
-    {"name": "MarketWatch",          "url": "https://feeds.content.dowjones.io/public/rss/mw_realtimeheadlines", "priority": 3},
-    {"name": "Kauppalehti (FI)",     "url": "https://www.kauppalehti.fi/5/i/rss/uutiset.rss",      "priority": 3},
+    # ── Nord America ─────────────────────────────────────────────
+    {"name": "Reuters Business",     "url": "https://feeds.reuters.com/reuters/businessNews",       "priority": 1, "region": "north_america"},
+    {"name": "Reuters World",        "url": "https://feeds.reuters.com/Reuters/worldNews",          "priority": 1, "region": "global"},
+    {"name": "Bloomberg Markets",    "url": "https://feeds.bloomberg.com/markets/news.rss",         "priority": 1, "region": "global"},
+    {"name": "Financial Times",      "url": "https://www.ft.com/rss/home",                          "priority": 1, "region": "global"},
+    {"name": "AP Business",          "url": "https://rsshub.app/apnews/topics/business",            "priority": 1, "region": "north_america"},
+    {"name": "Federal Reserve",      "url": "https://www.federalreserve.gov/feeds/press_all.xml",   "priority": 1, "region": "north_america"},
+    {"name": "Nasdaq News",          "url": "https://www.nasdaq.com/feed/rssoutbound?category=Markets", "priority": 1, "region": "north_america"},
+    # ── Europa ────────────────────────────────────────────────────
+    {"name": "ECB Releases",         "url": "https://www.ecb.europa.eu/rss/press.html",             "priority": 1, "region": "europe"},
+    {"name": "CNBC Europe",          "url": "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114", "priority": 1, "region": "europe"},
+    {"name": "The Telegraph UK",     "url": "https://www.telegraph.co.uk/rss.xml",                  "priority": 2, "region": "europe"},
+    {"name": "Il Sole 24 Ore",       "url": "https://www.ilsole24ore.com/rss/finanza-e-mercati.xml","priority": 2, "region": "europe"},
+    {"name": "MilanoFinanza",        "url": "https://www.milanofinanza.it/rss",                     "priority": 2, "region": "europe"},
+    # ── Medio Oriente ────────────────────────────────────────────
+    {"name": "Al Jazeera Economy",   "url": "https://www.aljazeera.com/xml/rss/all.xml",            "priority": 1, "region": "middle_east"},
+    # ── Asia/Pacifico ─────────────────────────────────────────────
+    {"name": "Nikkei Asia Pacific",  "url": "https://asia.nikkei.com/rss/feed/nar",                 "priority": 1, "region": "apac"},
+    # ── Sud America ───────────────────────────────────────────────
+    {"name": "MercoPress Sud America","url": "https://en.mercopress.com/rss/",                      "priority": 2, "region": "latam"},
+    # ── Globale / Mercati ─────────────────────────────────────────
+    {"name": "CNBC Markets",         "url": "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=20910258", "priority": 2, "region": "global"},
+    {"name": "Investing.com IT",     "url": "https://it.investing.com/rss/news_14.rss",             "priority": 2, "region": "global"},
+    {"name": "TradingEconomics",     "url": "https://tradingeconomics.com/rss/news.aspx",           "priority": 2, "region": "global"},
+    {"name": "Yahoo Finance Energy", "url": "https://finance.yahoo.com/rss/headline?s=XLE",         "priority": 2, "region": "global"},
+    {"name": "Yahoo Finance Crypto", "url": "https://finance.yahoo.com/rss/headline?s=IBIT",        "priority": 2, "region": "global"},
+    {"name": "Yahoo Finance EM",     "url": "https://finance.yahoo.com/rss/headline?s=EEM",         "priority": 2, "region": "global"},
+    {"name": "Seeking Alpha",        "url": "https://seekingalpha.com/market_currents.xml",         "priority": 3, "region": "global"},
+    {"name": "CoinDesk",             "url": "https://www.coindesk.com/arc/outboundfeeds/rss/",      "priority": 3, "region": "global"},
+    {"name": "MarketWatch",          "url": "https://feeds.content.dowjones.io/public/rss/mw_realtimeheadlines", "priority": 3, "region": "global"},
+    {"name": "Kauppalehti (FI)",     "url": "https://www.kauppalehti.fi/5/i/rss/uutiset.rss",      "priority": 3, "region": "europe"},
 ]
 
 HIGH_IMPACT_KEYWORDS = [

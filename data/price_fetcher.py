@@ -11,6 +11,7 @@
 # ================================================================
 
 import logging
+import time
 import numpy as np
 import pandas as pd
 import yfinance as yf
@@ -27,36 +28,50 @@ def fetch_asset_data(ticker: str, period_days: int = LOOKBACK_DAYS) -> Optional[
     """
     Scarica i dati OHLCV da Yahoo Finance per un singolo ticker.
     Usato come fallback individuale se il batch download fallisce.
+    Tenta con yf.download(), poi con yf.Ticker().history() come fallback.
     """
-    try:
-        end   = datetime.now()
-        start = end - timedelta(days=period_days)
+    end   = datetime.now()
+    start = end - timedelta(days=period_days)
 
-        df = yf.download(
-            ticker,
-            start=start.strftime("%Y-%m-%d"),
-            end=end.strftime("%Y-%m-%d"),
-            progress=False,
-            auto_adjust=True,
-            timeout=30,
-        )
+    for attempt in range(2):
+        try:
+            if attempt == 0:
+                df = yf.download(
+                    ticker,
+                    start=start.strftime("%Y-%m-%d"),
+                    end=end.strftime("%Y-%m-%d"),
+                    progress=False,
+                    auto_adjust=True,
+                    timeout=30,
+                )
+            else:
+                # Fallback alternativo: Ticker.history()
+                t = yf.Ticker(ticker)
+                df = t.history(start=start.strftime("%Y-%m-%d"),
+                               end=end.strftime("%Y-%m-%d"),
+                               auto_adjust=True)
 
-        if df is None or df.empty:
-            logger.warning(f"  {ticker}: nessun dato ricevuto da Yahoo Finance")
-            return None
+            if df is None or df.empty:
+                continue
 
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
+            # Appiattisci MultiIndex se presente (yfinance 1.x a volte lo aggiunge)
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
 
-        if len(df) < 20:
-            logger.warning(f"  {ticker}: dati insufficienti ({len(df)} barre)")
-            return None
+            # Rinomina "Price" → "Close" se necessario (yfinance 1.x)
+            if "Price" in df.columns and "Close" not in df.columns:
+                df = df.rename(columns={"Price": "Close"})
 
-        return df
+            if len(df) < 10:
+                continue
 
-    except Exception as e:
-        logger.error(f"  Errore download {ticker}: {e}")
-        return None
+            return df
+
+        except Exception as e:
+            logger.debug(f"  {ticker} tentativo {attempt+1}: {type(e).__name__}: {e}")
+
+    logger.warning(f"  {ticker}: download fallito dopo 2 tentativi")
+    return None
 
 
 def compute_indicators(df: pd.DataFrame) -> dict:
@@ -165,39 +180,62 @@ def _compute_dxy_correlation(asset_df: pd.DataFrame, dxy_df: pd.DataFrame) -> Op
 def _extract_ticker_df(raw: pd.DataFrame, ticker: str) -> Optional[pd.DataFrame]:
     """
     Estrae il DataFrame di un singolo ticker dal risultato batch di yfinance.
-    Gestisce tutte le varianti di MultiIndex prodotte da diverse versioni di yfinance.
+    Gestisce tutte le varianti di MultiIndex prodotte da yfinance 0.x e 1.x.
     """
+    MIN_BARS = 10  # soglia minima ridotta per gestire asset con storia più breve
     required = {"Open", "High", "Low", "Close"}
+
+    def _clean(df: pd.DataFrame) -> Optional[pd.DataFrame]:
+        """Normalizza colonne e restituisce df se valido."""
+        df = df.copy().dropna(how="all")
+        # In yfinance 1.x con auto_adjust, le colonne possono avere nomi diversi
+        # Mappa "Price"→"Close" se presente
+        rename_map = {}
+        for col in df.columns:
+            col_lower = str(col).lower()
+            if col_lower == "price":
+                rename_map[col] = "Close"
+        if rename_map:
+            df = df.rename(columns=rename_map)
+        if len(df) >= MIN_BARS and required.issubset(df.columns):
+            return df
+        return None
+
     try:
         # Caso 1: DataFrame semplice (singolo ticker o già estratto)
         if not isinstance(raw.columns, pd.MultiIndex):
-            df = raw.copy().dropna(how="all")
-            return df if len(df) >= 20 and required.issubset(df.columns) else None
+            return _clean(raw)
 
-        # Caso 2: MultiIndex — prova struttura (ticker, OHLCV) — group_by="ticker"
+        # Caso 2: MultiIndex (Ticker, Field) — group_by="ticker" yfinance 0.x/1.x
         try:
-            df = raw[ticker].copy().dropna(how="all")
-            if len(df) >= 20 and required.issubset(df.columns):
-                return df
+            return _clean(raw[ticker])
         except (KeyError, TypeError):
             pass
 
-        # Caso 3: MultiIndex — prova struttura (OHLCV, ticker) — default yfinance
+        # Caso 3: MultiIndex (Field, Ticker) — default yfinance (no group_by)
         try:
-            df = raw.xs(ticker, axis=1, level=1).copy().dropna(how="all")
-            if len(df) >= 20 and required.issubset(df.columns):
-                return df
+            return _clean(raw.xs(ticker, axis=1, level=1))
         except (KeyError, TypeError):
             pass
 
-        # Caso 4: prova con livelli scambiati
+        # Caso 4: livelli swappati
         try:
-            df = raw.swaplevel(axis=1)[ticker].copy().dropna(how="all")
-            if len(df) >= 20 and required.issubset(df.columns):
-                return df
+            return _clean(raw.swaplevel(axis=1)[ticker])
         except (KeyError, TypeError):
             pass
 
+        # Caso 5: prova con il ticker come level=0 (yfinance 1.x variante)
+        try:
+            lvl0 = raw.columns.get_level_values(0)
+            if ticker in lvl0.tolist():
+                mask = lvl0 == ticker
+                df = raw.iloc[:, mask].copy()
+                df.columns = df.columns.get_level_values(1)
+                return _clean(df)
+        except Exception:
+            pass
+
+        logger.debug(f"  {ticker}: nessuna struttura MultiIndex riconosciuta")
         return None
 
     except Exception as e:
@@ -237,25 +275,36 @@ def get_full_market_snapshot(assets: list) -> list:
 
     logger.info(f"Batch download {len(tickers)} ticker da Yahoo Finance...")
 
-    # ── Batch download ─────────────────────────────────────────────
+    # ── Batch download con retry ────────────────────────────────────
     raw = None
-    try:
-        raw = yf.download(
-            tickers,
-            start=start.strftime("%Y-%m-%d"),
-            end=end.strftime("%Y-%m-%d"),
-            group_by="ticker",
-            auto_adjust=True,
-            progress=False,
-            threads=True,    # Parallelo = molto più veloce in CI (~15s vs 7+ min)
-            timeout=90,      # Evita blocchi infiniti
-        )
-        if raw is None or raw.empty:
+    for attempt in range(3):
+        try:
+            raw = yf.download(
+                tickers,
+                start=start.strftime("%Y-%m-%d"),
+                end=end.strftime("%Y-%m-%d"),
+                group_by="ticker",
+                auto_adjust=True,
+                progress=False,
+                threads=True,    # Parallelo = molto più veloce in CI
+                timeout=90,
+            )
+            if raw is not None and not raw.empty and len(raw) >= 5:
+                logger.info(f"  Batch download OK al tentativo {attempt+1}: {raw.shape}")
+                break
+            else:
+                raw = None
+                logger.warning(f"  Batch download vuoto (tentativo {attempt+1}/3)")
+                if attempt < 2:
+                    time.sleep(3 * (attempt + 1))
+        except Exception as e:
+            logger.warning(f"  Batch download fallito tentativo {attempt+1}/3: {type(e).__name__}: {e}")
             raw = None
-            logger.warning("  Batch download vuoto — uso download singolo per tutti")
-    except Exception as e:
-        logger.warning(f"  Batch download fallito ({e}) — uso download singolo")
-        raw = None
+            if attempt < 2:
+                time.sleep(3 * (attempt + 1))
+
+    if raw is None:
+        logger.warning("  Tutti i tentativi batch falliti — uso download singolo")
 
     # ── Scarica DXY per correlazioni ───────────────────────────────
     dxy_df = None
