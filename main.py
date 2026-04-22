@@ -216,6 +216,78 @@ def run_analysis_and_report(cycle: str, snapshot=None, news_list=None,
         send_alert(error_msg, alert_type="error")
         return False
 
+    # ── Inietta dati Global Macro calcolati in Python ─────────────
+    # Non dipende dall'AI — garantisce heatmap e CB table in ogni report
+    try:
+        from data.global_macro import (
+            compute_regional_heatmap,
+            compute_cb_correlations,
+        )
+        from config import POLICY_RATES
+
+        # Heatmap regionale dal snapshot (dati reali, non AI)
+        heatmap_raw = compute_regional_heatmap(snapshot or [])
+        report["regional_heatmap"] = []
+        for key, d in heatmap_raw.items():
+            chg = d["avg_change_1d"]
+            score = d["trend_score"]
+            if score >= 1:
+                segnale = f"{d['emoji']} Rialzista"
+            elif score <= -1:
+                segnale = f"{d['emoji']} Ribassista"
+            else:
+                segnale = f"{d['emoji']} Neutro"
+            driver = ""
+            if score >= 1 and d.get("best_asset"):
+                driver = f"Migliore: {d['best_asset']['name']} ({d['best_asset']['change']:+.2f}%)"
+            elif score <= -1 and d.get("worst_asset"):
+                driver = f"Peggiore: {d['worst_asset']['name']} ({d['worst_asset']['change']:+.2f}%)"
+            report["regional_heatmap"].append({
+                "region":         d["label"],
+                "performance_1d": f"{chg:+.2f}%" if chg is not None else "N/A",
+                "segnale":        segnale,
+                "driver":         driver,
+            })
+
+        # Tabella CB dai POLICY_RATES (dati statici sempre affidabili)
+        bias_label = {"hawkish": "🦅 Hawkish", "dovish": "🕊️ Dovish", "neutral": "⚖️ Neutrale"}
+        mossa_map  = {"hawkish": "rialzo", "dovish": "taglio", "neutral": "pausa"}
+        report["cb_table"] = [
+            {
+                "bank":                  v["bank"],
+                "currency":              k,
+                "rate":                  f"{v['rate']:.2f}%",
+                "bias":                  bias_label.get(v["bias"], v["bias"]),
+                "prossima_mossa_attesa": mossa_map.get(v["bias"], "pausa"),
+                "impatto_fx":            "",
+            }
+            for k, v in POLICY_RATES.items()
+        ]
+
+        # Cross-asset: usa l'AI se disponibile, altrimenti genera dalle divergenze CB
+        if not report.get("cross_asset_opportunities"):
+            cb_corrs = compute_cb_correlations(snapshot or [])
+            divs = [
+                {
+                    "titolo":         f"{k} ({v['bank']})",
+                    "descrizione":    v["signal"],
+                    "asset_coinvolti": v.get("commodity_names", [])[:2],
+                    "logica":          v["rationale"],
+                }
+                for k, v in cb_corrs.items()
+                if v.get("alignment") is False
+            ]
+            if divs:
+                report["cross_asset_opportunities"] = divs[:3]
+
+        logger.info(
+            f"  Global Macro: {len(report['regional_heatmap'])} regioni | "
+            f"{len(report['cb_table'])} CB | "
+            f"{len(report.get('cross_asset_opportunities', []))} cross-asset"
+        )
+    except Exception as e:
+        logger.warning(f"  Global Macro injection fallita (non bloccante): {e}")
+
     # ── Salva report JSON ─────────────────────────────────────────
     report_file = f"logs/report_{cycle}_{datetime.now().strftime('%Y%m%d_%H%M')}.json"
     with open(report_file, "w", encoding="utf-8") as f:

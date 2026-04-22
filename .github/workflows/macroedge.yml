@@ -17,7 +17,8 @@
 # SECRETS DA CONFIGURARE in GitHub → Settings → Secrets → Actions:
 #   TELEGRAM_BOT_TOKEN
 #   TELEGRAM_CHAT_ID
-#   AI_PROVIDER          (groq | gemini | mistral | anthropic)
+#   AI_PROVIDER          (qwen | groq | gemini | mistral | anthropic)
+#   QWEN_API_KEY         (se usi Qwen — CONSIGLIATO, 1M token/giorno gratis)
 #   GROQ_API_KEY         (se usi Groq)
 #   GEMINI_API_KEY       (se usi Gemini)
 #   MISTRAL_API_KEY      (se usi Mistral)
@@ -103,8 +104,9 @@ jobs:
       # ── 6. Esegui MacroEdge ───────────────────────────────────
       - name: Esegui analisi MacroEdge
         env:
-          # Se AI_PROVIDER non è nei secret → default "groq"
-          AI_PROVIDER:           ${{ secrets.AI_PROVIDER || 'groq' }}
+          # Se AI_PROVIDER non è nei secret → default "qwen"
+          AI_PROVIDER:           ${{ secrets.AI_PROVIDER || 'qwen' }}
+          QWEN_API_KEY:          ${{ secrets.QWEN_API_KEY }}
           GROQ_API_KEY:          ${{ secrets.GROQ_API_KEY }}
           GEMINI_API_KEY:        ${{ secrets.GEMINI_API_KEY }}
           MISTRAL_API_KEY:       ${{ secrets.MISTRAL_API_KEY }}

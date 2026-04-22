@@ -28,22 +28,24 @@ def _escape_md(text: str) -> str:
 def _format_report_message(report: dict) -> list[str]:
     """
     Formatta il report JSON in messaggi Telegram leggibili.
-    Restituisce una lista di stringhe (messaggi separati) per gestire
-    report lunghi con molti asset e trade ideas.
+    Restituisce una lista di stringhe (messaggi separati).
     """
-    report_day   = report.get("report_day", "Report")
-    bias         = report.get("bias", "N/A")
-    bias_causa   = report.get("bias_causa", "")
-    macro        = report.get("macro_outlook", "")
-    divergenza   = report.get("divergenza_chiave", {})
-    trade_ideas  = report.get("trade_ideas", [])
-    top5         = report.get("top5_opportunita", [])
-    alert_corr   = report.get("alert_correlazioni", [])
-    alert_dollar = report.get("alert_dollaro", False)
-    alert_detail = report.get("alert_dollaro_dettaglio", "")
-    monitoring   = report.get("da_monitorare", [])
-    sentiment    = report.get("sentiment_score", 0) or 0
-    asset_count  = report.get("asset_count", "N/A")
+    report_day        = report.get("report_day", "Report")
+    bias              = report.get("bias", "N/A")
+    bias_causa        = report.get("bias_causa", "")
+    macro             = report.get("macro_outlook", "")
+    divergenza        = report.get("divergenza_chiave", {})
+    trade_ideas       = report.get("trade_ideas", [])
+    top5              = report.get("top5_opportunita", [])
+    alert_corr        = report.get("alert_correlazioni", [])
+    alert_dollar      = report.get("alert_dollaro", False)
+    alert_detail      = report.get("alert_dollaro_dettaglio", "")
+    monitoring        = report.get("da_monitorare", [])
+    sentiment         = report.get("sentiment_score", 0) or 0
+    asset_count       = report.get("asset_count", "N/A")
+    regional_heatmap  = report.get("regional_heatmap", [])
+    cb_table          = report.get("cb_table", [])
+    cross_asset_opps  = report.get("cross_asset_opportunities", [])
 
     bias_emoji = "🟢" if bias == "Risk-On" else "🔴" if bias == "Risk-Off" else "🟡"
     now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
@@ -52,7 +54,7 @@ def _format_report_message(report: dict) -> list[str]:
 
     # ── MESSAGGIO 1: Header + Bias + Divergenza ───────────────────
     m1 = []
-    m1.append(f"📊 *MACROEDGE — {_escape_md(report_day.upper())}*")
+    m1.append(f"📊 *MACRO FINANCIAL REPORT — {_escape_md(report_day.upper())}*")
     m1.append(f"━━━━━━━━━━━━━━━━━━━━")
     m1.append(f"🕐 {_escape_md(now_str)} \\| 🔭 {_escape_md(str(asset_count))} asset analizzati")
     m1.append("")
@@ -82,7 +84,49 @@ def _format_report_message(report: dict) -> list[str]:
 
     messages.append("\n".join(m1))
 
-    # ── MESSAGGIO 2+: Trade Ideas ─────────────────────────────────
+    # ── MESSAGGIO 2: Regional Heatmap + CB Table ─────────────────
+    if regional_heatmap or cb_table:
+        mgm = []
+        mgm.append(f"🌍 *GLOBAL MACRO — Panoramica Regionale*")
+        mgm.append(f"━━━━━━━━━━━━━━━━━━━━")
+
+        if regional_heatmap:
+            mgm.append(f"📍 *Heatmap per area geografica:*")
+            mgm.append(f"_\\(come si muovono i mercati nelle diverse aree del mondo\\)_")
+            for r in regional_heatmap:
+                region_name = r.get("region", "")
+                perf        = r.get("performance_1d", "")
+                segnale     = r.get("segnale", "")
+                driver      = r.get("driver", "")
+                mgm.append(
+                    f"  {_escape_md(segnale)} *{_escape_md(region_name)}*: "
+                    f"`{_escape_md(str(perf))}`"
+                )
+                if driver:
+                    mgm.append(f"    _↳ {_escape_md(driver)}_")
+            mgm.append("")
+
+        if cb_table:
+            mgm.append(f"🏦 *Banche Centrali — Tassi & Posizionamento:*")
+            mgm.append(f"_\\(tasso attuale e direzione attesa di ogni banca centrale\\)_")
+            for cb in cb_table[:8]:
+                bank     = cb.get("bank", "")
+                currency = cb.get("currency", "")
+                rate     = cb.get("rate", "")
+                bias_cb  = cb.get("bias", "")
+                prossima = cb.get("prossima_mossa_attesa", "")
+                mgm.append(
+                    f"  {_escape_md(bias_cb)} *{_escape_md(bank)}* \\({currency}\\): "
+                    f"`{_escape_md(str(rate))}`"
+                )
+                if prossima:
+                    mgm.append(f"    _↳ Prossima mossa: {_escape_md(prossima)}_")
+            mgm.append("")
+
+        mgm.append(f"━━━━━━━━━━━━━━━━━━━━")
+        messages.append("\n".join(mgm))
+
+    # ── MESSAGGIO 3+: Trade Ideas ─────────────────────────────────
     for i, trade in enumerate(trade_ideas, 1):
         settore   = trade.get("settore", "N/A")
         direzione = trade.get("direzione", "N/A")
@@ -146,7 +190,7 @@ def _format_report_message(report: dict) -> list[str]:
         mt5 = []
         mt5.append(f"🏆 *TOP 5 OPPORTUNITÀ DELLA SETTIMANA*")
         mt5.append(f"━━━━━━━━━━━━━━━━━━━━")
-        mt5.append(f"_I 5 asset con il miglior segnale tecnico e fondamentale tra i 141 monitorati_")
+        mt5.append(f"_I 5 asset con il miglior segnale tecnico e fondamentale tra i 150 monitorati_")
         mt5.append("")
 
         for opp in top5[:5]:
@@ -175,6 +219,27 @@ def _format_report_message(report: dict) -> list[str]:
             mt5.append("")
 
         messages.append("\n".join(mt5))
+
+    # ── MESSAGGIO: Cross-Asset Opportunities ─────────────────────
+    if cross_asset_opps:
+        mca = []
+        mca.append(f"🔗 *OPPORTUNITÀ CROSS\\-ASSET*")
+        mca.append(f"━━━━━━━━━━━━━━━━━━━━")
+        mca.append(f"_\\(opportunità dove valuta, banca centrale e commodity si muovono insieme\\)_")
+        mca.append("")
+        for opp in cross_asset_opps[:3]:
+            titolo  = opp.get("titolo", "")
+            descr   = opp.get("descrizione", "")
+            assets  = opp.get("asset_coinvolti", [])
+            logica  = opp.get("logica", "")
+            mca.append(f"💡 *{_escape_md(titolo)}*")
+            if assets:
+                mca.append(f"  Asset: {_escape_md(', '.join(assets))}")
+            mca.append(f"  {_escape_md(descr)}")
+            if logica:
+                mca.append(f"  _↳ {_escape_md(logica)}_")
+            mca.append("")
+        messages.append("\n".join(mca))
 
     # ── MESSAGGIO: Alert correlazioni + Da monitorare ─────────────
     mfooter = []
@@ -215,7 +280,7 @@ def _format_report_message(report: dict) -> list[str]:
 def _format_alert_message(alert_type: str, details: str) -> str:
     emoji = "⚠️" if alert_type == "warning" else "🚨"
     return (
-        f"{emoji} *MACROEDGE ALERT*\n"
+        f"{emoji} *MACRO FINANCIAL REPORT — ALERT*\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"{_escape_md(details)}\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -298,7 +363,7 @@ async def _send_report_async(report: dict) -> bool:
         if not success:
             ok = False
         if i < len(messages) - 1:
-            await asyncio.sleep(2)  # pausa tra messaggi del report
+            await asyncio.sleep(2)
     return ok
 
 
@@ -323,12 +388,13 @@ def send_alert(message: str, alert_type: str = "warning") -> bool:
 def send_startup_message() -> bool:
     """Invia un messaggio di avvio del sistema."""
     msg = (
-        "🚀 *MacroEdge avviato*\n"
+        "🚀 *Macro Financial Report Ai — Avviato*\n"
         "━━━━━━━━━━━━━━━━━━━━\n"
         "Il sistema è operativo\\.\n"
-        "📅 *Ciclo A:* Domenica analisi → Lunedì 07:00 report\n"
-        "📅 *Ciclo B:* Mercoledì analisi → Giovedì 07:00 report\n"
-        "🔭 *Asset monitorati:* ~130 \\(indici, FX, azioni 10 paesi, ETF, crypto\\)\n"
+        "📅 *Ciclo A:* Domenica analisi → Lunedì 05:30 report\n"
+        "📅 *Ciclo B:* Mercoledì analisi → Giovedì 05:30 report\n"
+        "🔭 *Asset monitorati:* ~150 \\(indici globali, FX incluse valute EM, azioni 10 paesi, ETF, crypto\\)\n"
+        "🌍 *Copertura:* Nord America · Europa · APAC · Latam · Medio Oriente\n"
         "━━━━━━━━━━━━━━━━━━━━\n"
         f"🕐 {_escape_md(datetime.now().strftime('%d/%m/%Y %H:%M'))}"
     )

@@ -4,7 +4,8 @@
 # Cambia AI_PROVIDER in config.py per switchare.
 #
 # Provider supportati:
-#   "groq"      → Llama 3.3 70B   — CONSIGLIATO (gratuito, veloce)
+#   "qwen"      → Qwen-turbo       — CONSIGLIATO (1M token/giorno, 131k ctx)
+#   "groq"      → Llama 3.3 70B   — gratuito (12k TPM — limite stretto)
 #   "gemini"    → Gemini 1.5 Flash — gratuito
 #   "mistral"   → Mistral Small    — tier gratuito
 #   "anthropic" → Claude Opus/Sonnet — a pagamento
@@ -20,6 +21,7 @@ from config import (
     GEMINI_API_KEY, GEMINI_MODEL,
     MISTRAL_API_KEY, MISTRAL_MODEL,
     ANTHROPIC_API_KEY, CLAUDE_MODEL,
+    QWEN_API_KEY, QWEN_MODEL, QWEN_BASE_URL,
     CATEGORY_LABELS,
 )
 
@@ -76,7 +78,21 @@ def _call_anthropic(prompt: str) -> str:
     return r.content[0].text
 
 
+def _call_qwen(prompt: str) -> str:
+    """Qwen-turbo via DashScope — 1M token/giorno gratuiti, 131k context."""
+    from openai import OpenAI
+    client = OpenAI(api_key=QWEN_API_KEY, base_url=QWEN_BASE_URL)
+    r = client.chat.completions.create(
+        model=QWEN_MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.3,
+        max_tokens=3000,
+    )
+    return r.choices[0].message.content
+
+
 _PROVIDERS = {
+    "qwen":      _call_qwen,
     "groq":      _call_groq,
     "gemini":    _call_gemini,
     "mistral":   _call_mistral,
@@ -92,8 +108,21 @@ def _call_ai(prompt: str) -> str:
     return fn(prompt)
 
 
+# Categorie macro — dettaglio completo nel prompt AI
+_PRIORITY_CATEGORIES = {
+    "energy", "metals_precious", "metals_industrial",
+    "index_us", "index_eu", "index_asia", "fx", "bonds",
+    "agriculture", "softs", "etf_global", "etf_em", "etf_latam", "crypto_etf",
+}
+
+
 def _build_technical_summary(snapshot: list) -> str:
-    """Raggruppa gli asset per categoria nel riepilogo tecnico."""
+    """
+    Raggruppa gli asset per categoria nel riepilogo tecnico.
+    Categorie macro: dettaglio completo (entry/stop/target precisi).
+    Categorie equity: riassunto compatto (top 2 movers + media categoria).
+    Questo riduce il prompt da ~15.000 a ~4.000 token.
+    """
     from collections import defaultdict
     by_cat = defaultdict(list)
     for a in snapshot:
@@ -102,20 +131,43 @@ def _build_technical_summary(snapshot: list) -> str:
     sections = []
     for cat, assets in by_cat.items():
         label = CATEGORY_LABELS.get(cat, cat.upper())
-        lines = [f"=== {label} ==="]
-        for a in assets:
-            chg = a.get("change_1d_pct", 0) or 0
-            dxy = a.get("dxy_correlation")
-            atr = a.get("atr")
-            lines.append(
-                f"• {a.get('name','')} ({a.get('ticker','')})\n"
-                f"  Prezzo: {a.get('price','N/A')} | 1D: {chg:+.2f}% | {a.get('rsi_signal','N/A')}\n"
-                f"  Trend: {a.get('trend','N/A')}\n"
-                f"  Sup20d: {a.get('support_20d','N/A')} | Res20d: {a.get('resistance_20d','N/A')}"
-                + (f" | ATR: {atr}" if atr is not None else "")
-                + (f" | Corr.DXY: {dxy:.2f}" if dxy is not None else "")
-            )
-        sections.append("\n".join(lines))
+
+        if cat in _PRIORITY_CATEGORIES:
+            # ── Dettaglio completo per asset macro ─────────────────
+            lines = [f"=== {label} ==="]
+            for a in assets:
+                chg = a.get("change_1d_pct", 0) or 0
+                dxy = a.get("dxy_correlation")
+                atr = a.get("atr")
+                lines.append(
+                    f"• {a.get('name','')} ({a.get('ticker','')})\n"
+                    f"  Prezzo: {a.get('price','N/A')} | 1D: {chg:+.2f}% | {a.get('rsi_signal','N/A')}\n"
+                    f"  Trend: {a.get('trend','N/A')}\n"
+                    f"  Sup20d: {a.get('support_20d','N/A')} | Res20d: {a.get('resistance_20d','N/A')}"
+                    + (f" | ATR: {atr}" if atr is not None else "")
+                    + (f" | Corr.DXY: {dxy:.2f}" if dxy is not None else "")
+                )
+            sections.append("\n".join(lines))
+        else:
+            # ── Riassunto compatto per categorie equity ─────────────
+            if not assets:
+                continue
+            changes = [a.get("change_1d_pct", 0) or 0 for a in assets]
+            avg_chg = sum(changes) / len(changes) if changes else 0
+            # Top 3: i 2 migliori e il peggiore per evidenziare outlier
+            sorted_by_chg = sorted(assets, key=lambda a: a.get("change_1d_pct", 0) or 0, reverse=True)
+            top_movers = sorted_by_chg[:2] + ([sorted_by_chg[-1]] if len(sorted_by_chg) > 2 else [])
+            lines = [f"=== {label} ({len(assets)} titoli | media 1D: {avg_chg:+.2f}%) ==="]
+            for a in top_movers:
+                chg = a.get("change_1d_pct", 0) or 0
+                atr = a.get("atr")
+                lines.append(
+                    f"• {a.get('name','')} ({a.get('ticker','')}): "
+                    f"{a.get('price','N/A')} | {chg:+.2f}% | {a.get('trend','N/A')}"
+                    + (f" | ATR: {atr}" if atr is not None else "")
+                )
+            sections.append("\n".join(lines))
+
     return "\n\n".join(sections)
 
 
@@ -248,7 +300,7 @@ def analyze(cycle: str, snapshot: list, news_list: list,
     prompt = _build_prompt(
         cycle,
         _build_technical_summary(snapshot),
-        format_news_for_ai(news_list, max_items=25),
+        format_news_for_ai(news_list, max_items=15),
         fx_context=fx_ctx,
         eia_context=eia_ctx,
         geo_context=geo_ctx,
