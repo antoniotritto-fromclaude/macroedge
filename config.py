@@ -5,8 +5,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ── Provider AI — scegli uno solo ────────────────────────────────
-# Opzioni: "groq" (gratis) | "gemini" (gratis) | "mistral" (gratis) | "anthropic" (pagamento)
-# Se AI_PROVIDER non è configurato come secret GitHub, usa "groq" come default
+# Opzioni: "groq" (CONSIGLIATO, gratis) | "qwen" (OpenRouter) | "gemini" | "mistral" | "anthropic"
+# Il prompt è ottimizzato per stare sotto 8.000 token — Groq funziona senza problemi
 AI_PROVIDER = (os.getenv("AI_PROVIDER") or "groq").strip().lower()
 
 # Groq — CONSIGLIATO (gratis, veloce) → groq.com
@@ -25,11 +25,11 @@ MISTRAL_MODEL   = "mistral-small-latest"
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 CLAUDE_MODEL      = "claude-opus-4-5"
 
-# Qwen (Alibaba Cloud DashScope) — 1M token/giorno gratuiti → dashscope.aliyuncs.com
-# Ottimo per prompt grandi: no limite 12k TPM come Groq
+# Qwen via OpenRouter — globalmente accessibile, modelli Qwen gratuiti
+# Registrazione email su openrouter.ai → API Key → imposta come QWEN_API_KEY
 QWEN_API_KEY  = os.getenv("QWEN_API_KEY", "")
-QWEN_MODEL    = "qwen-turbo"   # qwen-plus = più qualità | qwen-max = best (a pagamento)
-QWEN_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+QWEN_MODEL    = "qwen/qwen-2.5-72b-instruct:free"  # :free = gratuito con rate limit
+QWEN_BASE_URL = "https://openrouter.ai/api/v1"
 
 TELEGRAM_BOT_TOKEN      = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID        = os.getenv("TELEGRAM_CHAT_ID", "")

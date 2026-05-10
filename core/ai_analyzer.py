@@ -4,8 +4,8 @@
 # Cambia AI_PROVIDER in config.py per switchare.
 #
 # Provider supportati:
-#   "qwen"      → Qwen-turbo       — CONSIGLIATO (1M token/giorno, 131k ctx)
-#   "groq"      → Llama 3.3 70B   — gratuito (12k TPM — limite stretto)
+#   "groq"      → Llama 3.3 70B   — CONSIGLIATO (gratis, prompt ottimizzato ~6k token)
+#   "qwen"      → Qwen 2.5 72B    — via OpenRouter (gratis, globalmente accessibile)
 #   "gemini"    → Gemini 1.5 Flash — gratuito
 #   "mistral"   → Mistral Small    — tier gratuito
 #   "anthropic" → Claude Opus/Sonnet — a pagamento
